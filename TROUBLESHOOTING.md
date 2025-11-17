@@ -285,6 +285,49 @@ Common issues and their solutions when running the Autonomous Minecraft Bot.
 
 ## Mining Issues
 
+### PartialReadError During Mining
+
+**Problem**: Bot encounters `PartialReadError: Read error for undefined : undefined` when mining diamonds or other ores
+
+**Explanation**: This is a protocol-level packet parsing error from the protodef library. It occurs when reading entity equipment packets from the Minecraft server and is typically non-fatal.
+
+**Solutions**:
+1. Error is now handled gracefully (as of latest update):
+   - Bot logs the error but continues operating
+   - No restart required
+   - Mining operations continue normally
+
+2. If bot still crashes with this error:
+   ```bash
+   # Update to latest version
+   git pull
+   npm install
+   ```
+
+3. Check Minecraft version compatibility:
+   - Ensure server version matches bot configuration
+   - Update `.env` if needed:
+     ```env
+     MINECRAFT_VERSION=1.20.1  # Match your server version
+     ```
+
+### Pathfinding Timeout ("Took too long to decide path to goal!")
+
+**Problem**: Bot gets "Took too long to decide path to goal!" error when trying to mine
+
+**Explanation**: Pathfinding can timeout when trying to reach difficult-to-access blocks
+
+**Solutions**:
+1. Now handled automatically with fallback (as of latest update):
+   - Bot tries exact pathfinding first
+   - Falls back to nearby goal if timeout occurs
+   - Continues mining operations
+
+2. If pathfinding still fails frequently:
+   - Clear obstacles around mining areas
+   - Bot may be in complex cave system
+   - Try teleporting bot to open area
+
 ### Bot Falls in Caves
 
 **Problem**: Bot falls into caves while mining

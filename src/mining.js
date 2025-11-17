@@ -154,7 +154,21 @@ class MiningSystem {
         
         for (const block of veinBlocks) {
             try {
-                await this.bot.pathfinder.goto(new goals.GoalBlock(block.position.x, block.position.y, block.position.z));
+                // Add timeout handling for pathfinder
+                try {
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(block.position.x, block.position.y, block.position.z));
+                } catch (pathError) {
+                    // If pathfinding fails with timeout, try a less strict goal
+                    if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                        console.log(`Pathfinding timeout for vein block, trying alternative approach`);
+                        await this.bot.pathfinder.goto(new goals.GoalNear(block.position.x, block.position.y, block.position.z, 3));
+                    } else {
+                        // Skip this block if pathfinding fails for other reasons
+                        console.error('Skipping vein block due to pathfinding error:', pathError.message);
+                        continue;
+                    }
+                }
+                
                 await this.bot.dig(block);
                 await this.sleep(200);
             } catch (error) {

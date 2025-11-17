@@ -141,7 +141,20 @@ class ResourceGatherer {
             }
 
             await this.notifier.notifyMining(oreType, ore.position.y);
-            await this.bot.pathfinder.goto(new goals.GoalBlock(ore.position.x, ore.position.y, ore.position.z));
+            
+            // Add timeout to pathfinder to prevent "Took too long to decide path to goal" errors
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalBlock(ore.position.x, ore.position.y, ore.position.z));
+            } catch (pathError) {
+                // If pathfinding fails, try getting closer with a less strict goal
+                if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                    console.log(`Pathfinding timeout, trying alternative approach for ${oreType}`);
+                    await this.bot.pathfinder.goto(new goals.GoalNear(ore.position.x, ore.position.y, ore.position.z, 3));
+                } else {
+                    throw pathError;
+                }
+            }
+            
             await this.bot.dig(ore);
             
             console.log(`Mined ${oreType} ore`);
@@ -189,13 +202,21 @@ class ResourceGatherer {
                 try {
                     await this.inventory.equipBestTool('pickaxe');
                     
-                    // Navigate to ore location
-                    await this.bot.pathfinder.goto(new goals.GoalNear(
-                        loc.position.x,
-                        loc.position.y,
-                        loc.position.z,
-                        3
-                    ));
+                    // Navigate to ore location with timeout handling
+                    try {
+                        await this.bot.pathfinder.goto(new goals.GoalNear(
+                            loc.position.x,
+                            loc.position.y,
+                            loc.position.z,
+                            3
+                        ));
+                    } catch (pathError) {
+                        if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                            console.log(`Pathfinding timeout to ${oreType} ore, skipping location`);
+                            continue; // Skip this location and try the next one
+                        }
+                        throw pathError; // Re-throw if it's a different error
+                    }
                     
                     // Find the ore block (it might still be there)
                     const oreBlock = this.bot.findBlock({
@@ -205,11 +226,28 @@ class ResourceGatherer {
                     
                     if (oreBlock) {
                         console.log(`Mining discovered ${oreType} ore at ${oreBlock.position.toString()}`);
-                        await this.bot.pathfinder.goto(new goals.GoalBlock(
-                            oreBlock.position.x,
-                            oreBlock.position.y,
-                            oreBlock.position.z
-                        ));
+                        
+                        // Navigate to the exact ore block with timeout handling
+                        try {
+                            await this.bot.pathfinder.goto(new goals.GoalBlock(
+                                oreBlock.position.x,
+                                oreBlock.position.y,
+                                oreBlock.position.z
+                            ));
+                        } catch (pathError) {
+                            if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                                console.log(`Pathfinding timeout to exact ore block, trying nearby approach`);
+                                await this.bot.pathfinder.goto(new goals.GoalNear(
+                                    oreBlock.position.x,
+                                    oreBlock.position.y,
+                                    oreBlock.position.z,
+                                    2
+                                ));
+                            } else {
+                                throw pathError;
+                            }
+                        }
+                        
                         await this.bot.dig(oreBlock);
                         minedCount++;
                         await this.notifier.notifyResourceFound(oreType, 1);

@@ -76,7 +76,31 @@ class AutonomousMinecraftBot {
         });
 
         this.bot.on('error', (err) => {
+            // Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
+            if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError')) {
+                console.warn('⚠ Protocol packet parsing error (non-fatal):', err.message);
+                // Log but don't crash - the bot can continue operating
+                return;
+            }
+            
             console.error('✗ Bot error:', err);
+        });
+        
+        // Add error handler for the underlying client to catch PartialReadError at the protocol level
+        this.bot.once('inject_allowed', () => {
+            if (this.bot._client) {
+                this.bot._client.on('error', (err) => {
+                    // Handle PartialReadError and other protocol errors gracefully
+                    if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError') || 
+                        err.message?.includes('Read error')) {
+                        console.warn('⚠ Client protocol parsing error (non-fatal):', err.message || err.name);
+                        // Don't let these errors crash the bot
+                        return;
+                    }
+                    // Let other errors bubble up to the bot error handler
+                    this.bot.emit('error', err);
+                });
+            }
         });
 
         this.bot.on('end', () => {
