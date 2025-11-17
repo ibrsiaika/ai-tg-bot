@@ -49,13 +49,15 @@ class BehaviorManager {
                 // Safety checks first
                 if (!this.safety.isSafe()) {
                     await this.handleSafetyIssue();
+                    await this.sleep(3000); // Wait after handling safety issue
                     continue;
                 }
 
                 // Check for environmental dangers
                 const danger = this.safety.isInDanger();
-                if (danger) {
+                if (danger && this.systems.combat.canRetreat()) {
                     await this.systems.combat.retreat();
+                    await this.sleep(3000); // Wait after retreat
                     continue;
                 }
 
@@ -229,13 +231,13 @@ class BehaviorManager {
             await this.systems.inventory.eatFood();
         }
 
-        if (this.safety.isLowHealth()) {
+        if (this.safety.isLowHealth() && this.systems.combat.canRetreat()) {
             await this.systems.combat.retreat();
             await this.systems.combat.heal();
         }
 
         const threats = await this.safety.checkNearbyDangers();
-        if (threats.length > 0) {
+        if (threats.length > 0 && this.systems.combat.canRetreat()) {
             await this.systems.combat.retreat();
         }
     }

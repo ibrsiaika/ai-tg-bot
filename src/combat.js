@@ -9,6 +9,8 @@ class CombatSystem {
         this.safety = safetyMonitor;
         this.currentTarget = null;
         this.retreating = false;
+        this.lastRetreatTime = 0;
+        this.retreatCooldown = 15000; // 15 seconds cooldown between retreats
     }
 
     async startCombatMonitoring() {
@@ -19,14 +21,14 @@ class CombatSystem {
             
             if (threats.length > 0 && this.safety.isSafe()) {
                 await this.engageCombat(threats);
-            } else if (threats.length > 0 && !this.safety.isSafe()) {
+            } else if (threats.length > 0 && !this.safety.isSafe() && this.canRetreat()) {
                 await this.retreat();
             }
-        }, 2000); // Check every 2 seconds
+        }, 5000); // Check every 5 seconds (increased from 2)
     }
 
     async engageCombat(threats) {
-        if (!this.safety.isSafe()) {
+        if (!this.safety.isSafe() && this.canRetreat()) {
             await this.retreat();
             return;
         }
@@ -68,7 +70,7 @@ class CombatSystem {
 
         while (entity.isValid && attackCount < maxAttacks) {
             // Check if we should retreat
-            if (!this.safety.isSafe()) {
+            if (!this.safety.isSafe() && this.canRetreat()) {
                 console.log('Health too low, retreating');
                 await this.retreat();
                 return;
@@ -105,9 +107,19 @@ class CombatSystem {
     }
 
     async retreat() {
-        if (this.retreating) return;
+        // Check if already retreating or on cooldown
+        const now = Date.now();
+        if (this.retreating) {
+            return;
+        }
+        
+        if (now - this.lastRetreatTime < this.retreatCooldown) {
+            console.log(`Retreat on cooldown (${Math.ceil((this.retreatCooldown - (now - this.lastRetreatTime)) / 1000)}s remaining)`);
+            return;
+        }
         
         this.retreating = true;
+        this.lastRetreatTime = now;
         console.log('Retreating from danger');
 
         const threats = await this.safety.checkNearbyDangers();
@@ -136,7 +148,10 @@ class CombatSystem {
         } catch (error) {
             console.error('Error during retreat:', error.message);
         } finally {
-            this.retreating = false;
+            // Keep retreating flag set for a bit longer to prevent immediate re-trigger
+            setTimeout(() => {
+                this.retreating = false;
+            }, 5000); // Keep flag for 5 seconds after retreat completes
         }
     }
 
@@ -155,6 +170,11 @@ class CombatSystem {
             y: sumY / count,
             z: sumZ / count
         };
+    }
+
+    canRetreat() {
+        const now = Date.now();
+        return !this.retreating && (now - this.lastRetreatTime >= this.retreatCooldown);
     }
 
     async heal() {
