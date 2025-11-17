@@ -14,6 +14,8 @@ const BuildingSystem = require('./src/building');
 const CombatSystem = require('./src/combat');
 const FarmingSystem = require('./src/farming');
 const BehaviorManager = require('./src/behavior');
+const ExplorationSystem = require('./src/exploration');
+const AdvancedBaseSystem = require('./src/advancedBase');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -190,6 +192,26 @@ class AutonomousMinecraftBot {
             this.systems.inventory
         );
 
+        // Initialize exploration system (NEW)
+        this.systems.exploration = new ExplorationSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
+        // Set home base for exploration
+        this.systems.exploration.setHomeBase(this.bot.entity.position);
+
+        // Initialize advanced base system (NEW)
+        this.systems.advancedBase = new AdvancedBaseSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.building
+        );
+
         // Initialize behavior manager (autonomous decision making)
         this.systems.behavior = new BehaviorManager(
             this.bot,
@@ -198,8 +220,8 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
-        console.log('✓ All systems initialized');
-        await this.systems.notifier.send('All systems online. Beginning autonomous operations.');
+        console.log('✓ All systems initialized (12 systems online)');
+        await this.systems.notifier.send('Enhanced AI systems online. Beginning intelligent autonomous operations.');
     }
 }
 
@@ -226,15 +248,19 @@ console.log(`  Username: ${config.username}`);
 console.log(`  Telegram: ${config.telegramToken ? 'Enabled' : 'Disabled'}`);
 console.log('');
 console.log('Features:');
-console.log('  ✓ Autonomous survival behavior');
-console.log('  ✓ Intelligent resource gathering');
+console.log('  ✓ Enhanced AI with adaptive behavior');
+console.log('  ✓ Intelligent exploration & mapping');
+console.log('  ✓ Advanced survival base building');
+console.log('  ✓ Day/night cycle adaptation');
+console.log('  ✓ Smart resource gathering');
 console.log('  ✓ Automatic mining operations');
-console.log('  ✓ Base building & expansion');
+console.log('  ✓ Fortified base with watchtowers');
 console.log('  ✓ Farming automation');
 console.log('  ✓ Combat & defense systems');
 console.log('  ✓ Tool crafting & upgrading');
 console.log('  ✓ Inventory management');
 console.log('  ✓ Telegram notifications');
+console.log('  ✓ Performance tracking');
 console.log('');
 console.log('Starting bot...');
 console.log('═══════════════════════════════════════════════');

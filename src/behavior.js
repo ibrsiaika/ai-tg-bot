@@ -14,6 +14,23 @@ class BehaviorManager {
             MEDIUM: 50,
             LOW: 25
         };
+        
+        // Enhanced intelligence tracking
+        this.performanceMetrics = {
+            resourcesGathered: 0,
+            structuresBuilt: 0,
+            mobsDefeated: 0,
+            areasExplored: 0,
+            toolsUpgraded: 0,
+            deathCount: 0
+        };
+        
+        this.adaptiveBehavior = {
+            explorationPreference: 0.3,
+            miningPreference: 0.4,
+            buildingPreference: 0.2,
+            farmingPreference: 0.15
+        };
     }
 
     async start() {
@@ -62,11 +79,13 @@ class BehaviorManager {
     }
 
     async chooseNextGoal() {
-        console.log('Choosing next autonomous goal');
+        console.log('Choosing next autonomous goal (Enhanced AI)');
         
         const goals = [];
+        const timeOfDay = this.bot.time.timeOfDay;
+        const isNight = timeOfDay > 13000 && timeOfDay < 23000;
 
-        // Survival goals
+        // CRITICAL: Survival goals
         if (this.safety.needsFood()) {
             goals.push({
                 name: 'find_food',
@@ -83,7 +102,7 @@ class BehaviorManager {
             });
         }
 
-        // Resource gathering goals
+        // HIGH: Essential tools
         const hasBasicTools = await this.systems.inventory.hasBasicTools();
         
         if (!hasBasicTools.hasPickaxe || !hasBasicTools.hasAxe) {
@@ -94,8 +113,53 @@ class BehaviorManager {
             });
         }
 
-        // Mining goals
-        if (Math.random() < 0.3) {
+        // Adaptive behavior based on time of day
+        if (isNight) {
+            // Night activities: indoor tasks, mining, crafting
+            if (Math.random() < this.adaptiveBehavior.miningPreference * 1.5) {
+                goals.push({
+                    name: 'night_mining',
+                    priority: this.priorities.MEDIUM,
+                    action: async () => await this.mineResources()
+                });
+            }
+            
+            if (Math.random() < 0.3) {
+                goals.push({
+                    name: 'craft_items',
+                    priority: this.priorities.MEDIUM,
+                    action: async () => await this.craftingSession()
+                });
+            }
+        } else {
+            // Day activities: exploration, gathering, building
+            if (Math.random() < this.adaptiveBehavior.explorationPreference) {
+                goals.push({
+                    name: 'explore_world',
+                    priority: this.priorities.MEDIUM,
+                    action: async () => await this.intelligentExploration()
+                });
+            }
+            
+            if (Math.random() < 0.5) {
+                goals.push({
+                    name: 'gather_resources',
+                    priority: this.priorities.MEDIUM,
+                    action: async () => await this.gatherResourcesIntelligently()
+                });
+            }
+            
+            if (Math.random() < this.adaptiveBehavior.buildingPreference) {
+                goals.push({
+                    name: 'build_structures',
+                    priority: this.priorities.MEDIUM,
+                    action: async () => await this.buildIntelligently()
+                });
+            }
+        }
+
+        // MEDIUM: Regular activities
+        if (Math.random() < this.adaptiveBehavior.miningPreference) {
             goals.push({
                 name: 'mine_resources',
                 priority: this.priorities.MEDIUM,
@@ -103,8 +167,7 @@ class BehaviorManager {
             });
         }
 
-        // Farming goals
-        if (Math.random() < 0.2) {
+        if (Math.random() < this.adaptiveBehavior.farmingPreference) {
             goals.push({
                 name: 'auto_farm',
                 priority: this.priorities.MEDIUM,
@@ -112,34 +175,25 @@ class BehaviorManager {
             });
         }
 
-        // Resource collection goals
-        if (Math.random() < 0.4) {
+        // Tool upgrading check
+        if (Math.random() < 0.2) {
             goals.push({
-                name: 'collect_wood',
+                name: 'upgrade_tools',
                 priority: this.priorities.MEDIUM,
-                action: async () => await this.systems.gathering.collectWood(20)
+                action: async () => await this.upgradeEquipment()
             });
         }
 
-        // Building goals
-        if (Math.random() < 0.15) {
+        // Advanced base building
+        if (Math.random() < 0.1 && this.systems.advancedBase) {
             goals.push({
-                name: 'expand_base',
+                name: 'advanced_base',
                 priority: this.priorities.LOW,
-                action: async () => await this.expandBase()
+                action: async () => await this.systems.advancedBase.buildAdvancedBase(this.bot.entity.position)
             });
         }
 
-        // Exploration goals
-        if (Math.random() < 0.25) {
-            goals.push({
-                name: 'explore',
-                priority: this.priorities.LOW,
-                action: async () => await this.explore()
-            });
-        }
-
-        // Inventory management
+        // HIGH: Inventory management
         if (this.systems.inventory.isInventoryFull()) {
             goals.push({
                 name: 'manage_inventory',
@@ -147,6 +201,16 @@ class BehaviorManager {
                 action: async () => await this.manageInventory()
             });
         }
+
+        // Sort by priority and return highest
+        goals.sort((a, b) => b.priority - a.priority);
+
+        return goals[0] || {
+            name: 'idle_explore',
+            priority: this.priorities.LOW,
+            action: async () => await this.explore()
+        };
+    }
 
         // Sort by priority
         goals.sort((a, b) => b.priority - a.priority);
@@ -251,25 +315,128 @@ class BehaviorManager {
     async explore() {
         console.log('Exploring the world');
         
-        // Move in random direction
-        const randomX = (Math.random() - 0.5) * 200;
-        const randomZ = (Math.random() - 0.5) * 200;
-        const targetPos = this.bot.entity.position.offset(randomX, 0, randomZ);
+        // Use exploration system if available
+        if (this.systems.exploration) {
+            await this.systems.exploration.smartExplore(300, 120000);
+            this.performanceMetrics.areasExplored++;
+        } else {
+            // Fallback to basic exploration
+            const randomX = (Math.random() - 0.5) * 200;
+            const randomZ = (Math.random() - 0.5) * 200;
+            const targetPos = this.bot.entity.position.offset(randomX, 0, randomZ);
 
-        try {
-            const { goals } = require('mineflayer-pathfinder');
-            await this.bot.pathfinder.goto(new goals.GoalNear(
-                targetPos.x,
-                targetPos.y,
-                targetPos.z,
-                10
-            ));
-            
-            // Look for interesting things
-            await this.systems.gathering.searchForValuableOres();
-        } catch (error) {
-            console.log('Exploration completed or interrupted');
+            try {
+                const { goals } = require('mineflayer-pathfinder');
+                await this.bot.pathfinder.goto(new goals.GoalNear(
+                    targetPos.x,
+                    targetPos.y,
+                    targetPos.z,
+                    10
+                ));
+                
+                // Look for interesting things
+                await this.systems.gathering.searchForValuableOres();
+            } catch (error) {
+                console.log('Exploration completed or interrupted');
+            }
         }
+    }
+
+    async intelligentExploration() {
+        console.log('Intelligent exploration with mapping');
+        
+        if (this.systems.exploration) {
+            const discoveries = await this.systems.exploration.smartExplore(400, 180000);
+            this.performanceMetrics.areasExplored += discoveries;
+            
+            if (discoveries > 0) {
+                await this.notifier.send(`Exploration yielded ${discoveries} discoveries!`);
+            }
+        }
+    }
+
+    async gatherResourcesIntelligently() {
+        console.log('Intelligent resource gathering');
+        
+        // Prioritize based on what we need
+        const inventory = this.bot.inventory.items();
+        const woodCount = inventory.filter(i => i.name.includes('log')).length;
+        const stoneCount = inventory.filter(i => i.name.includes('stone')).length;
+        
+        if (woodCount < 20) {
+            await this.systems.gathering.collectWood(32);
+            this.performanceMetrics.resourcesGathered += 32;
+        } else if (stoneCount < 64) {
+            await this.systems.gathering.mineStone(64);
+            this.performanceMetrics.resourcesGathered += 64;
+        } else {
+            // Look for valuable ores
+            await this.systems.gathering.searchForValuableOres();
+        }
+    }
+
+    async buildIntelligently() {
+        console.log('Intelligent building decision');
+        
+        // Check if we have advanced base system
+        if (this.systems.advancedBase && Math.random() < 0.3) {
+            const pos = this.bot.entity.position;
+            await this.systems.advancedBase.buildAdvancedBase(pos);
+            this.performanceMetrics.structuresBuilt++;
+        } else {
+            await this.expandBase();
+        }
+    }
+
+    async craftingSession() {
+        console.log('Dedicated crafting session');
+        
+        // Craft multiple items in sequence
+        await this.systems.crafting.craftTorches();
+        await this.systems.crafting.craftBasicTools();
+        await this.sleep(1000);
+    }
+
+    async upgradeEquipment() {
+        console.log('Upgrading equipment');
+        
+        // Try to upgrade to better materials
+        const hasDiamond = await this.systems.inventory.hasItem('diamond', 3);
+        const hasIron = await this.systems.inventory.hasItem('iron_ingot', 3);
+        
+        if (hasDiamond) {
+            await this.systems.crafting.upgradeTools('diamond');
+            this.performanceMetrics.toolsUpgraded++;
+            await this.notifier.send('Upgraded to diamond tools!');
+        } else if (hasIron) {
+            await this.systems.crafting.upgradeTools('iron');
+            this.performanceMetrics.toolsUpgraded++;
+            await this.notifier.send('Upgraded to iron tools!');
+        }
+    }
+
+    async reportPerformance() {
+        const stats = `Performance Report:
+Resources: ${this.performanceMetrics.resourcesGathered}
+Structures: ${this.performanceMetrics.structuresBuilt}
+Mobs Defeated: ${this.performanceMetrics.mobsDefeated}
+Areas Explored: ${this.performanceMetrics.areasExplored}
+Tools Upgraded: ${this.performanceMetrics.toolsUpgraded}`;
+        
+        await this.notifier.send(stats);
+    }
+
+    adaptBehavior() {
+        // Adapt behavior based on performance
+        if (this.performanceMetrics.resourcesGathered < 100) {
+            this.adaptiveBehavior.miningPreference += 0.1;
+        }
+        
+        if (this.performanceMetrics.structuresBuilt < 5) {
+            this.adaptiveBehavior.buildingPreference += 0.05;
+        }
+        
+        console.log('Behavior adapted based on performance');
     }
 
     async manageInventory() {

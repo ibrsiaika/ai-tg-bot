@@ -1,13 +1,37 @@
-# Autonomous Minecraft Bot
+# Autonomous Minecraft Bot - Enhanced Edition
 
-A fully autonomous Minecraft robot built with Node.js and Mineflayer. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, and combat. It sends important updates to your Telegram.
+A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, and **advanced base building**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, and combat. It sends important updates to your Telegram.
 
-## 🤖 Features
+## 🤖 Enhanced Features
+
+### Advanced Intelligence System (NEW)
+- **Adaptive Behavior**: Learns and adjusts strategies based on performance
+- **Day/Night Cycle Awareness**: Changes activities based on time of day
+- **Performance Metrics**: Tracks resources, structures, exploration progress
+- **Smart Decision Making**: Prioritizes tasks based on current needs
+- **Intelligent Goal Selection**: Enhanced priority system with situational awareness
+
+### Exploration & Mapping System (NEW)
+- **Smart Exploration**: Systematically explores unexplored areas
+- **Waypoint System**: Remembers important locations (home, villages, temples)
+- **Structure Detection**: Finds and marks villages, temples, and other structures
+- **Biome Discovery**: Identifies and catalogs different biomes
+- **Ore Scanning**: Actively searches for valuable ore deposits
+- **Mapping**: Tracks visited locations to avoid redundant exploration
+
+### Advanced Base Building (NEW)
+- **Fortified Walls**: Multi-layered defensive walls with battlements
+- **Corner Watchtowers**: 8-block tall towers at all corners with ladders
+- **Interior Structures**: Organized rooms (storage, crafting, bedroom, smelting)
+- **Defensive Lighting**: Perimeter lighting to prevent mob spawns
+- **Moat Construction**: Optional protective moat around base
+- **Base Progression**: Upgradeable base levels with increasing complexity
 
 ### Autonomous Behavior
 - **Fully Independent**: Makes all decisions automatically without waiting for commands
 - **Intelligent Planning**: Continuously evaluates priorities and chooses optimal goals
 - **24/7 Operation**: Works continuously until manually stopped or disconnected
+- **Adaptive Learning**: Adjusts behavior based on success metrics
 
 ### Survival Systems
 - **Health Monitoring**: Maintains health above 60% (configurable)
