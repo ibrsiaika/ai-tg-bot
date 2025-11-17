@@ -170,6 +170,15 @@ Language analyzed: JavaScript
 
 ## Security Updates
 
+### 2025-11-17: Retreat Spam Fix
+**Changes**: Added cooldown mechanism to prevent retreat spam
+**Security Impact**: None - no security vulnerabilities introduced or fixed
+**CodeQL Status**: ✅ 0 alerts (verified)
+**Changes**:
+- Added retreat cooldown timer (15 seconds)
+- Added canRetreat() helper method
+- Improved coordination between combat and behavior systems
+
 To stay secure:
 1. Watch repository for security advisories
 2. Run `npm audit` regularly
