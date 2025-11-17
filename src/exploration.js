@@ -29,6 +29,107 @@ class ExplorationSystem {
         this.homeBase = position.clone();
         this.addWaypoint('Home Base', position);
         console.log(`Home base established at ${position.toString()}`);
+        
+        // Save to file for persistence (optional but useful)
+        this.saveHomeBaseToMemory(position);
+    }
+
+    saveHomeBaseToMemory(position) {
+        // Store home base coordinates for future reference
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const memoryFile = path.join(__dirname, '../.bot-memory.json');
+            
+            let memory = {};
+            if (fs.existsSync(memoryFile)) {
+                memory = JSON.parse(fs.readFileSync(memoryFile, 'utf8'));
+            }
+            
+            memory.homeBase = {
+                x: position.x,
+                y: position.y,
+                z: position.z,
+                timestamp: Date.now()
+            };
+            
+            fs.writeFileSync(memoryFile, JSON.stringify(memory, null, 2));
+            console.log('Home base saved to memory');
+        } catch (error) {
+            console.error('Error saving home base:', error.message);
+        }
+    }
+
+    loadHomeBaseFromMemory() {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const memoryFile = path.join(__dirname, '../.bot-memory.json');
+            
+            if (fs.existsSync(memoryFile)) {
+                const memory = JSON.parse(fs.readFileSync(memoryFile, 'utf8'));
+                if (memory.homeBase) {
+                    const pos = new Vec3(memory.homeBase.x, memory.homeBase.y, memory.homeBase.z);
+                    this.homeBase = pos;
+                    this.addWaypoint('Home Base (Loaded)', pos);
+                    console.log(`Home base loaded from memory: ${pos.toString()}`);
+                    return pos;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading home base:', error.message);
+        }
+        return null;
+    }
+
+    async goToHomeBase() {
+        if (!this.homeBase) {
+            console.log('No home base set');
+            return false;
+        }
+
+        console.log(`Navigating to home base at ${this.homeBase.toString()}`);
+        
+        try {
+            await this.bot.pathfinder.goto(new goals.GoalNear(
+                this.homeBase.x,
+                this.homeBase.y,
+                this.homeBase.z,
+                5
+            ));
+            
+            console.log('Arrived at home base');
+            return true;
+        } catch (error) {
+            console.error('Error navigating to home base:', error.message);
+            return false;
+        }
+    }
+
+    async goToWaypoint(waypointName) {
+        const waypoint = this.waypoints.find(w => w.name.includes(waypointName));
+        
+        if (!waypoint) {
+            console.log(`Waypoint '${waypointName}' not found`);
+            return false;
+        }
+
+        console.log(`Navigating to waypoint: ${waypoint.name}`);
+        
+        try {
+            await this.bot.pathfinder.goto(new goals.GoalNear(
+                waypoint.position.x,
+                waypoint.position.y,
+                waypoint.position.z,
+                5
+            ));
+            
+            console.log(`Arrived at ${waypoint.name}`);
+            return true;
+        } catch (error) {
+            console.error(`Error navigating to ${waypoint.name}:`, error.message);
+            return false;
+        }
     }
 
     addWaypoint(name, position) {

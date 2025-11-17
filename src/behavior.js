@@ -300,6 +300,22 @@ class BehaviorManager {
             });
         }
 
+        // Raid loot collection - check for nearby items after combat
+        const nearbyItems = Object.values(this.bot.entities).filter(entity => 
+            entity.type === 'object' && 
+            entity.objectType === 'Item'
+        );
+        
+        if (nearbyItems.length > 5 && Math.random() < 0.4) {
+            goals.push({
+                name: 'collect_raid_loot',
+                type: 'combat',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 7,
+                action: async () => await this.systems.combat.collectRaidLoot()
+            });
+        }
+
         // Advanced base building
         if (Math.random() < 0.1 && this.systems.advancedBase) {
             goals.push({

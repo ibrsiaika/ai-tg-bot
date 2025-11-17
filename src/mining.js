@@ -60,39 +60,134 @@ class MiningSystem {
         }
     }
 
-    async descendToDepth(targetY) {
+    async descendToDepth(targetY, useStairs = true) {
         const currentY = this.bot.entity.position.y;
         
         if (currentY <= targetY) {
             return; // Already at or below target depth
         }
 
-        console.log(`Descending from Y=${currentY} to Y=${targetY}`);
+        console.log(`Descending from Y=${currentY} to Y=${targetY}${useStairs ? ' (using stairs)' : ''}`);
         
-        // Dig down carefully
-        while (this.bot.entity.position.y > targetY) {
-            const blockBelow = this.bot.blockAt(this.bot.entity.position.offset(0, -1, 0));
-            const blockBelow2 = this.bot.blockAt(this.bot.entity.position.offset(0, -2, 0));
+        if (useStairs) {
+            // Create a staircase for easy return
+            await this.digStaircaseDown(targetY);
+        } else {
+            // Dig down carefully (old method)
+            while (this.bot.entity.position.y > targetY) {
+                const blockBelow = this.bot.blockAt(this.bot.entity.position.offset(0, -1, 0));
+                const blockBelow2 = this.bot.blockAt(this.bot.entity.position.offset(0, -2, 0));
+                
+                // Safety check for lava
+                if (blockBelow2 && (blockBelow2.name === 'lava' || blockBelow2.name === 'flowing_lava')) {
+                    console.log('Lava detected below, stopping descent');
+                    return;
+                }
+
+                if (blockBelow && blockBelow.name !== 'air') {
+                    await this.bot.dig(blockBelow);
+                }
+
+                // Move down
+                await this.bot.pathfinder.goto(new goals.GoalBlock(
+                    this.bot.entity.position.x,
+                    this.bot.entity.position.y - 1,
+                    this.bot.entity.position.z
+                ));
+
+                await this.sleep(200);
+            }
+        }
+    }
+
+    async digStaircaseDown(targetY) {
+        console.log('Creating staircase for easy return');
+        
+        const startPos = this.bot.entity.position.clone();
+        await this.inventory.equipBestTool('pickaxe');
+        
+        // Dig stairs in a spiral pattern (safer and easier to navigate)
+        let currentY = Math.floor(this.bot.entity.position.y);
+        let direction = 0; // 0: north, 1: east, 2: south, 3: west
+        const directions = [
+            new Vec3(0, 0, -1),  // north
+            new Vec3(1, 0, 0),   // east
+            new Vec3(0, 0, 1),   // south
+            new Vec3(-1, 0, 0)   // west
+        ];
+        
+        while (currentY > targetY) {
+            const dir = directions[direction % 4];
+            const nextPos = this.bot.entity.position.offset(dir.x, -1, dir.z);
+            
+            // Dig the block ahead and below (stair step)
+            const blockAhead = this.bot.blockAt(this.bot.entity.position.offset(dir.x, 0, dir.z));
+            const blockBelowAhead = this.bot.blockAt(nextPos);
+            const blockAboveAhead = this.bot.blockAt(this.bot.entity.position.offset(dir.x, 1, dir.z));
             
             // Safety check for lava
+            const blockBelow2 = this.bot.blockAt(this.bot.entity.position.offset(dir.x, -2, dir.z));
             if (blockBelow2 && (blockBelow2.name === 'lava' || blockBelow2.name === 'flowing_lava')) {
-                console.log('Lava detected below, stopping descent');
-                return;
+                console.log('Lava detected, changing direction');
+                direction++;
+                continue;
             }
-
-            if (blockBelow && blockBelow.name !== 'air') {
-                await this.bot.dig(blockBelow);
+            
+            // Dig blocks to create 2-block high passage
+            if (blockAhead && blockAhead.name !== 'air' && blockAhead.name !== 'bedrock') {
+                try {
+                    await this.bot.dig(blockAhead);
+                    await this.sleep(100);
+                } catch (error) {
+                    // Continue if can't dig
+                }
             }
-
-            // Move down
-            await this.bot.pathfinder.goto(new goals.GoalBlock(
-                this.bot.entity.position.x,
-                this.bot.entity.position.y - 1,
-                this.bot.entity.position.z
-            ));
-
-            await this.sleep(200);
+            
+            if (blockAboveAhead && blockAboveAhead.name !== 'air' && blockAboveAhead.name !== 'bedrock') {
+                try {
+                    await this.bot.dig(blockAboveAhead);
+                    await this.sleep(100);
+                } catch (error) {
+                    // Continue if can't dig
+                }
+            }
+            
+            if (blockBelowAhead && blockBelowAhead.name !== 'air' && blockBelowAhead.name !== 'bedrock') {
+                try {
+                    await this.bot.dig(blockBelowAhead);
+                    await this.sleep(100);
+                } catch (error) {
+                    // Continue if can't dig
+                }
+            }
+            
+            // Move to next position
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalBlock(
+                    nextPos.x,
+                    nextPos.y,
+                    nextPos.z
+                ));
+            } catch (error) {
+                console.log('Pathfinding issue, adjusting direction');
+                direction++;
+                continue;
+            }
+            
+            currentY = Math.floor(this.bot.entity.position.y);
+            
+            // Place torch every 8 blocks for visibility
+            if (currentY % 8 === 0) {
+                await this.placeTorch();
+            }
+            
+            // Rotate direction every 4 steps for spiral
+            if (currentY % 4 === 0) {
+                direction++;
+            }
         }
+        
+        console.log('Staircase completed - easy return path available');
     }
 
     async digTunnel(length, direction) {
@@ -255,13 +350,15 @@ class MiningSystem {
             return false;
         }
 
-        console.log('Returning home');
+        console.log(`Returning home to ${this.homePosition.x}, ${this.homePosition.y}, ${this.homePosition.z}`);
         
         try {
-            await this.bot.pathfinder.goto(new goals.GoalBlock(
+            // Use GoalNear for more reliable pathfinding
+            await this.bot.pathfinder.goto(new goals.GoalNear(
                 this.homePosition.x,
                 this.homePosition.y,
-                this.homePosition.z
+                this.homePosition.z,
+                5  // Within 5 blocks is close enough
             ));
             
             await this.notifier.notifyStatus('Returned home');
@@ -269,8 +366,76 @@ class MiningSystem {
             return true;
         } catch (error) {
             console.error('Error returning home:', error.message);
+            
+            // Try ascending to surface first if stuck underground
+            if (this.bot.entity.position.y < this.homePosition.y - 10) {
+                console.log('Attempting to reach surface first');
+                try {
+                    await this.ascendToSurface();
+                    // Try again after reaching surface
+                    await this.bot.pathfinder.goto(new goals.GoalNear(
+                        this.homePosition.x,
+                        this.homePosition.y,
+                        this.homePosition.z,
+                        5
+                    ));
+                    await this.notifier.notifyStatus('Returned home (via surface)');
+                    return true;
+                } catch (surfaceError) {
+                    console.error('Failed to return home even via surface:', surfaceError.message);
+                }
+            }
+            
             return false;
         }
+    }
+
+    async ascendToSurface() {
+        console.log('Ascending to surface');
+        
+        const surfaceY = Math.max(this.homePosition.y, 70); // Assume surface is at least Y=70
+        
+        while (this.bot.entity.position.y < surfaceY) {
+            // Look for existing staircase or create one
+            const blockAbove = this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0));
+            const blockAbove2 = this.bot.blockAt(this.bot.entity.position.offset(0, 2, 0));
+            
+            if (blockAbove && blockAbove.name !== 'air' && blockAbove.name !== 'bedrock') {
+                await this.bot.dig(blockAbove);
+                await this.sleep(100);
+            }
+            
+            if (blockAbove2 && blockAbove2.name !== 'air' && blockAbove2.name !== 'bedrock') {
+                await this.bot.dig(blockAbove2);
+                await this.sleep(100);
+            }
+            
+            // Try to jump/climb up
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalBlock(
+                    this.bot.entity.position.x,
+                    this.bot.entity.position.y + 1,
+                    this.bot.entity.position.z
+                ));
+            } catch (error) {
+                // Try moving diagonally up
+                await this.bot.pathfinder.goto(new goals.GoalNear(
+                    this.bot.entity.position.x,
+                    this.bot.entity.position.y + 2,
+                    this.bot.entity.position.z,
+                    2
+                ));
+            }
+            
+            await this.sleep(200);
+            
+            // Safety check - don't get stuck in infinite loop
+            if (this.bot.entity.position.y > 256) {
+                break;
+            }
+        }
+        
+        console.log('Reached surface');
     }
 
     sleep(ms) {

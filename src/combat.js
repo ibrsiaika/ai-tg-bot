@@ -68,6 +68,7 @@ class CombatSystem {
     async attackEntity(entity) {
         console.log(`Attacking ${entity.name || 'hostile mob'}`);
         
+        const entityPosition = entity.position.clone(); // Remember position for loot collection
         let attackCount = 0;
         const maxAttacks = 20;
 
@@ -90,6 +91,95 @@ class CombatSystem {
         }
 
         console.log(`Combat ended after ${attackCount} attacks`);
+        
+        // Collect dropped items after defeating the mob
+        if (!entity.isValid) {
+            await this.collectNearbyItems(entityPosition);
+        }
+    }
+
+    async collectNearbyItems(position, radius = 8) {
+        console.log('Collecting nearby items from defeated mob');
+        
+        try {
+            // Wait a moment for items to drop
+            await this.sleep(1000);
+            
+            // Find nearby items on the ground
+            const droppedItems = Object.values(this.bot.entities).filter(entity => 
+                entity.type === 'object' && 
+                entity.objectType === 'Item' &&
+                entity.position.distanceTo(position) < radius
+            );
+
+            if (droppedItems.length === 0) {
+                console.log('No items to collect');
+                return;
+            }
+
+            console.log(`Found ${droppedItems.length} dropped items`);
+
+            for (const item of droppedItems) {
+                try {
+                    // Navigate to item
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(
+                        Math.floor(item.position.x),
+                        Math.floor(item.position.y),
+                        Math.floor(item.position.z)
+                    ));
+                    
+                    // Wait for auto-pickup
+                    await this.sleep(500);
+                } catch (error) {
+                    console.log('Could not reach item:', error.message);
+                }
+            }
+
+            console.log('Item collection completed');
+        } catch (error) {
+            console.error('Error collecting items:', error.message);
+        }
+    }
+
+    async collectRaidLoot() {
+        console.log('Collecting raid loot');
+        
+        // Find all nearby items (raid drops)
+        const items = Object.values(this.bot.entities).filter(entity => 
+            entity.type === 'object' && 
+            entity.objectType === 'Item'
+        );
+
+        if (items.length === 0) {
+            console.log('No raid loot found');
+            return false;
+        }
+
+        console.log(`Found ${items.length} items to collect from raid`);
+
+        for (const item of items) {
+            if (this.inventory.isInventoryFull()) {
+                console.log('Inventory full, stopping loot collection');
+                await this.notifier.notifyInventoryFull();
+                break;
+            }
+
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalBlock(
+                    Math.floor(item.position.x),
+                    Math.floor(item.position.y),
+                    Math.floor(item.position.z)
+                ));
+                
+                await this.sleep(500);
+            } catch (error) {
+                console.log('Could not reach item');
+            }
+        }
+
+        await this.notifier.send('Raid loot collected');
+        console.log('Raid loot collection completed');
+        return true;
     }
 
     findClosestThreat(threats) {
