@@ -1,6 +1,12 @@
 const { goals } = require('mineflayer-pathfinder');
 const Vec3 = require('vec3');
 
+// Constants
+const CHUNK_SIZE = 16;
+const MAX_TREE_LOCATIONS = 100;
+const TREE_LOCATION_EXPIRY_MS = 300000; // 5 minutes
+const MIN_TREE_DISTANCE = 5; // Don't return trees too close (likely already chopped)
+
 class ExplorationSystem {
     constructor(bot, pathfinder, notifier, inventoryManager) {
         this.bot = bot;
@@ -12,6 +18,11 @@ class ExplorationSystem {
         this.discoveredBiomes = new Set();
         this.waypoints = [];
         this.homeBase = null;
+        
+        // Enhanced resource tracking
+        this.knownTreeLocations = [];
+        this.knownOreLocations = new Map();
+        this.exploredChunks = new Set();
     }
 
     setHomeBase(position) {
@@ -29,12 +40,12 @@ class ExplorationSystem {
         console.log(`Waypoint added: ${name} at ${position.toString()}`);
     }
 
-    hasVisited(position, radius = 16) {
+    hasVisited(position, radius = CHUNK_SIZE) {
         const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
         return this.visitedLocations.has(key);
     }
 
-    markVisited(position, radius = 16) {
+    markVisited(position, radius = CHUNK_SIZE) {
         const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
         this.visitedLocations.add(key);
     }
@@ -129,9 +140,22 @@ class ExplorationSystem {
         }
 
         // Look for valuable resources
-        const ores = await this.scanForOres();
-        if (ores > 0) {
-            discoveries += ores;
+        const oreResults = await this.scanForOres();
+        if (oreResults.count > 0) {
+            discoveries += oreResults.count;
+            
+            // Store discovered ore locations for later mining
+            if (oreResults.ores.length > 0 && this.knownOreLocations) {
+                for (const ore of oreResults.ores) {
+                    if (!this.knownOreLocations.has(ore.type)) {
+                        this.knownOreLocations.set(ore.type, []);
+                    }
+                    this.knownOreLocations.get(ore.type).push({
+                        position: ore.position,
+                        timestamp: Date.now()
+                    });
+                }
+            }
         }
 
         return discoveries;
@@ -208,6 +232,7 @@ class ExplorationSystem {
     async scanForOres() {
         const ores = ['diamond_ore', 'iron_ore', 'gold_ore', 'emerald_ore', 'lapis_ore'];
         let foundCount = 0;
+        const foundOres = [];
 
         for (const ore of ores) {
             const found = this.bot.findBlock({
@@ -219,10 +244,18 @@ class ExplorationSystem {
                 foundCount++;
                 const oreName = ore.replace('_ore', '');
                 await this.notifier.send(`${oreName} ore vein spotted nearby!`);
+                
+                // Store ore location for mining
+                foundOres.push({
+                    type: oreName,
+                    position: found.position.clone(),
+                    block: found
+                });
             }
         }
 
-        return foundCount;
+        // Return both count and ore locations for mining
+        return { count: foundCount, ores: foundOres };
     }
 
     async returnToWaypoint(waypointName) {
@@ -270,6 +303,94 @@ class ExplorationSystem {
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Remember tree locations for efficient wood gathering
+     */
+    rememberTreeLocation(position, treeType) {
+        this.knownTreeLocations.push({
+            position: position.clone(),
+            type: treeType,
+            timestamp: Date.now()
+        });
+        
+        // Keep only recent tree locations
+        if (this.knownTreeLocations.length > MAX_TREE_LOCATIONS) {
+            this.knownTreeLocations.shift();
+        }
+    }
+
+    /**
+     * Find nearest known tree location
+     */
+    findNearestKnownTree(maxAge = TREE_LOCATION_EXPIRY_MS) {
+        const now = Date.now();
+        const currentPos = this.bot.entity.position;
+        
+        let nearest = null;
+        let minDistance = Infinity;
+        
+        for (const tree of this.knownTreeLocations) {
+            // Skip old locations
+            if (now - tree.timestamp > maxAge) continue;
+            
+            const distance = currentPos.distanceTo(tree.position);
+            // Don't return trees too close (likely already chopped)
+            if (distance < minDistance && distance > MIN_TREE_DISTANCE) {
+                minDistance = distance;
+                nearest = tree;
+            }
+        }
+        
+        return nearest;
+    }
+
+    /**
+     * Mark a chunk as explored
+     */
+    markChunkExplored(position) {
+        const chunkX = Math.floor(position.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(position.z / CHUNK_SIZE);
+        const key = `${chunkX},${chunkZ}`;
+        this.exploredChunks.add(key);
+    }
+
+    /**
+     * Check if chunk has been explored
+     */
+    isChunkExplored(position) {
+        const chunkX = Math.floor(position.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(position.z / CHUNK_SIZE);
+        const key = `${chunkX},${chunkZ}`;
+        return this.exploredChunks.has(key);
+    }
+
+    /**
+     * Find an unexplored chunk nearby
+     */
+    findUnexploredChunk(maxDistance = 10) {
+        const currentPos = this.bot.entity.position;
+        const currentChunkX = Math.floor(currentPos.x / CHUNK_SIZE);
+        const currentChunkZ = Math.floor(currentPos.z / CHUNK_SIZE);
+        
+        // Search in expanding rings
+        for (let radius = 1; radius <= maxDistance; radius++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dz = -radius; dz <= radius; dz++) {
+                    const chunkX = currentChunkX + dx;
+                    const chunkZ = currentChunkZ + dz;
+                    const key = `${chunkX},${chunkZ}`;
+                    
+                    if (!this.exploredChunks.has(key)) {
+                        // Return center of unexplored chunk
+                        return new Vec3(chunkX * CHUNK_SIZE + 8, currentPos.y, chunkZ * CHUNK_SIZE + 8);
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
 }
 

@@ -6,6 +6,11 @@ class ResourceGatherer {
         this.pathfinder = pathfinder;
         this.notifier = notifier;
         this.inventory = inventoryManager;
+        this.exploration = null; // Will be set later
+    }
+
+    setExplorationSystem(exploration) {
+        this.exploration = exploration;
     }
 
     async collectWood(count = 20) {
@@ -18,29 +23,66 @@ class ResourceGatherer {
             await this.inventory.equipBestTool('axe');
 
             let collected = 0;
-            while (collected < count) {
-                const tree = this.bot.findBlock({
-                    matching: block => woodTypes.includes(block.name),
-                    maxDistance: 64
-                });
+            let searchAttempts = 0;
+            const maxSearchAttempts = 10;
+            
+            while (collected < count && searchAttempts < maxSearchAttempts) {
+                // First, try to find a tree using known locations
+                let treePos = null;
+                
+                if (this.exploration) {
+                    const knownTree = this.exploration.findNearestKnownTree();
+                    if (knownTree) {
+                        treePos = knownTree.position;
+                        console.log(`Found tree in memory at ${treePos.toString()}`);
+                    }
+                }
+                
+                // If no known tree, search for one nearby
+                if (!treePos) {
+                    const tree = this.bot.findBlock({
+                        matching: block => woodTypes.includes(block.name),
+                        maxDistance: 64
+                    });
 
-                if (!tree) {
-                    console.log('No trees nearby, moving to find more');
-                    await this.exploreForResource('log');
-                    continue;
+                    if (!tree) {
+                        console.log('No trees found nearby, exploring to find more...');
+                        searchAttempts++;
+                        await this.exploreForResource('log');
+                        continue;
+                    }
+                    
+                    treePos = tree.position;
+                    
+                    // Remember this tree location
+                    if (this.exploration) {
+                        this.exploration.rememberTreeLocation(tree.position, tree.name);
+                    }
                 }
 
-                await this.bot.pathfinder.goto(new goals.GoalBlock(tree.position.x, tree.position.y, tree.position.z));
-                await this.bot.dig(tree);
-                collected++;
-                
-                // Pick up drops
-                await this.sleep(500);
+                // Navigate to and chop the tree
+                const tree = this.bot.blockAt(treePos);
+                if (tree && woodTypes.includes(tree.name)) {
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(tree.position.x, tree.position.y, tree.position.z));
+                    await this.bot.dig(tree);
+                    collected++;
+                    searchAttempts = 0; // Reset search attempts on success
+                    
+                    // Pick up drops
+                    await this.sleep(500);
+                } else {
+                    searchAttempts++;
+                }
             }
 
-            await this.notifier.notifyResourceFound('wood', collected);
-            console.log(`Collected ${collected} wood`);
-            return true;
+            if (collected > 0) {
+                await this.notifier.notifyResourceFound('wood', collected);
+                console.log(`Successfully collected ${collected} wood`);
+            } else {
+                console.log('Wood collection failed - no trees found after searching');
+            }
+            
+            return collected > 0;
         } catch (error) {
             console.error('Error collecting wood:', error.message);
             return false;
@@ -121,22 +163,88 @@ class ResourceGatherer {
 
             if (found) {
                 await this.mineOre(ore);
+                return true; // Successfully found and mined ore
             }
         }
+        
+        return false; // No ores found
+    }
+
+    /**
+     * Mine discovered ores from exploration system
+     */
+    async mineDiscoveredOres() {
+        if (!this.exploration || !this.exploration.knownOreLocations) {
+            return false;
+        }
+
+        console.log('Attempting to mine discovered ores');
+        let minedCount = 0;
+
+        for (const [oreType, locations] of this.exploration.knownOreLocations) {
+            // Mine up to 3 locations per ore type
+            const toMine = locations.slice(0, 3);
+            
+            for (const loc of toMine) {
+                try {
+                    await this.inventory.equipBestTool('pickaxe');
+                    
+                    // Navigate to ore location
+                    await this.bot.pathfinder.goto(new goals.GoalNear(
+                        loc.position.x,
+                        loc.position.y,
+                        loc.position.z,
+                        3
+                    ));
+                    
+                    // Find the ore block (it might still be there)
+                    const oreBlock = this.bot.findBlock({
+                        matching: block => block.name.includes(oreType) && block.name.includes('ore'),
+                        maxDistance: 5
+                    });
+                    
+                    if (oreBlock) {
+                        console.log(`Mining discovered ${oreType} ore at ${oreBlock.position.toString()}`);
+                        await this.bot.pathfinder.goto(new goals.GoalBlock(
+                            oreBlock.position.x,
+                            oreBlock.position.y,
+                            oreBlock.position.z
+                        ));
+                        await this.bot.dig(oreBlock);
+                        minedCount++;
+                        await this.notifier.notifyResourceFound(oreType, 1);
+                    }
+                    
+                    await this.sleep(500);
+                } catch (error) {
+                    console.error(`Error mining discovered ${oreType}:`, error.message);
+                }
+            }
+            
+            // Remove mined locations
+            locations.splice(0, toMine.length);
+        }
+
+        if (minedCount > 0) {
+            console.log(`Successfully mined ${minedCount} discovered ore(s)`);
+        }
+        
+        return minedCount > 0;
     }
 
     async exploreForResource(resourceType) {
-        console.log(`Exploring for ${resourceType}`);
+        console.log(`Exploring for ${resourceType}...`);
         
-        // Move in a random direction
+        // Move in a random direction to find resources
         const randomX = (Math.random() - 0.5) * 100;
         const randomZ = (Math.random() - 0.5) * 100;
         const targetPos = this.bot.entity.position.offset(randomX, 0, randomZ);
 
         try {
             await this.bot.pathfinder.goto(new goals.GoalNear(targetPos.x, targetPos.y, targetPos.z, 5));
+            console.log(`Exploration complete, searching for ${resourceType} in new area`);
         } catch (error) {
-            console.log('Exploration movement completed or interrupted');
+            console.log(`Exploration interrupted: ${error.message}. Continuing search...`);
         }
     }
 

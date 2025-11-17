@@ -4,20 +4,38 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 
 ## 🤖 Enhanced Features
 
-### Advanced Intelligence System (NEW)
+### Advanced Intelligence System (NEW - "The Brain")
+- **Memory Systems**: Remembers resource locations, danger zones, and safe areas
+- **Learning Capability**: Tracks action outcomes and success rates
+- **Decision Confidence**: Uses past performance to optimize choices
+- **Risk Assessment**: Evaluates danger of proposed actions
+- **Resource Prediction**: Prioritizes gathering based on actual needs
+- **Long-term Planning**: Manages goals and milestones strategically
+- **Strategy Optimization**: Learns from experience to improve over time
+
+### Tool Durability Management (NEW)
+- **Auto-Monitoring**: Tracks wear on all tools in inventory
+- **Smart Replacement**: Automatically replaces broken or low-durability tools
+- **Material Optimization**: Uses best available materials for crafting
+- **Priority System**: Focuses on most critical tools first
+- **Proactive Warnings**: Alerts before tools break completely
+
+### Advanced Intelligence System (ENHANCED)
 - **Adaptive Behavior**: Learns and adjusts strategies based on performance
 - **Day/Night Cycle Awareness**: Changes activities based on time of day
 - **Performance Metrics**: Tracks resources, structures, exploration progress
 - **Smart Decision Making**: Prioritizes tasks based on current needs
 - **Intelligent Goal Selection**: Enhanced priority system with situational awareness
 
-### Exploration & Mapping System (NEW)
-- **Smart Exploration**: Systematically explores unexplored areas
+### Exploration & Mapping System (ENHANCED)
+- **Smart Exploration**: Systematically explores unexplored chunks
+- **Tree Location Memory**: Remembers tree locations for efficient wood gathering
 - **Waypoint System**: Remembers important locations (home, villages, temples)
 - **Structure Detection**: Finds and marks villages, temples, and other structures
 - **Biome Discovery**: Identifies and catalogs different biomes
 - **Ore Scanning**: Actively searches for valuable ore deposits
-- **Mapping**: Tracks visited locations to avoid redundant exploration
+- **Mapping**: Tracks visited locations and chunks to avoid redundant exploration
+- **Intelligent Pathfinding**: Finds nearest known resources before searching
 
 ### Advanced Base Building (NEW)
 - **Fortified Walls**: Multi-layered defensive walls with battlements
@@ -40,16 +58,20 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 - **Retreat Logic**: Falls back when overwhelmed by mobs or low on health
 
 ### Resource Gathering
-- **Automatic Wood Collection**: Finds and chops trees
+- **Automatic Wood Collection**: Finds and chops trees (with memory system)
+- **Intelligent Search**: Remembers tree locations and searches efficiently
 - **Stone Mining**: Gathers stone and cobblestone
 - **Ore Mining**: Searches for and mines coal, iron, gold, diamonds, and other ores
 - **Ore Vein Mining**: Automatically mines entire ore veins when discovered
+- **Better Error Handling**: Improved messages when resources aren't found
 
 ### Tool Management
 - **Auto-Crafting**: Creates tools, torches, and other items as needed
 - **Tool Upgrading**: Automatically upgrades from wooden → stone → iron → diamond tools
-- **Durability Monitoring**: Tracks tool condition and replaces broken tools
+- **Durability Monitoring**: Tracks tool condition and replaces broken tools proactively
 - **Smart Equipment**: Equips best available tools for each task
+- **Auto-Replacement**: Crafts new tools when current ones break or wear out
+- **Material Optimization**: Uses best available materials for tool crafting
 
 ### Building Systems
 - **Starter Base**: Builds initial shelter with walls, floor, and door
@@ -197,11 +219,19 @@ Base expansion: storage room completed.
 ## 🔧 Advanced Features
 
 ### Autonomous Decision Making
-The bot uses a priority-based goal system:
+The bot uses a priority-based goal system enhanced with intelligence:
 - **CRITICAL**: Safety (health, food)
-- **HIGH**: Essential tools and inventory management
-- **MEDIUM**: Resource gathering, mining, farming
+- **HIGH**: Essential tools, inventory management, tool maintenance
+- **MEDIUM**: Resource gathering, mining, farming (based on intelligent needs)
 - **LOW**: Exploration, base expansion
+
+**Intelligence-Enhanced Features:**
+- Confidence scoring based on past performance
+- Risk assessment for proposed actions
+- Resource need prediction and prioritization
+- Learning from successful and failed actions
+- Strategic long-term goal management
+- Periodic intelligence reports
 
 ### Safety Systems
 - Continuous health monitoring
@@ -223,14 +253,18 @@ The bot uses a priority-based goal system:
 ai-tg-bot/
 ├── index.js              # Main entry point
 ├── src/
-│   ├── behavior.js       # Autonomous decision making
+│   ├── behavior.js       # Autonomous decision making (Enhanced with AI)
+│   ├── intelligence.js   # Advanced intelligence system (NEW)
+│   ├── toolDurability.js # Tool durability management (NEW)
 │   ├── safety.js         # Safety monitoring
 │   ├── inventory.js      # Inventory management
 │   ├── telegram.js       # Telegram notifications
-│   ├── gathering.js      # Resource gathering
+│   ├── gathering.js      # Resource gathering (Enhanced)
+│   ├── exploration.js    # Exploration system (Enhanced)
 │   ├── crafting.js       # Crafting system
 │   ├── mining.js         # Mining operations
 │   ├── building.js       # Building system
+│   ├── advancedBase.js   # Advanced base building
 │   ├── combat.js         # Combat system
 │   └── farming.js        # Farming automation
 ├── package.json
