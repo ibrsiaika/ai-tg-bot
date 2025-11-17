@@ -35,12 +35,25 @@ class CraftingSystem {
         
         const toolChecks = await this.inventory.hasBasicTools();
         
+        // Helper to check if we have any type of planks
+        const hasAnyPlanks = async (count) => {
+            const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                               'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                               'bamboo_planks', 'crimson_planks', 'warped_planks'];
+            for (const type of plankTypes) {
+                if (await this.inventory.countItem(type) >= count) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        
         // Craft pickaxe if missing
         if (!toolChecks.hasPickaxe) {
             if (await this.inventory.hasItem('cobblestone', 3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_pickaxe');
                 await this.notifier.notifyToolUpgrade('stone pickaxe');
-            } else if (await this.inventory.hasItem('planks', 3) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_pickaxe');
             }
         }
@@ -49,7 +62,7 @@ class CraftingSystem {
         if (!toolChecks.hasAxe) {
             if (await this.inventory.hasItem('cobblestone', 3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_axe');
-            } else if (await this.inventory.hasItem('planks', 3) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_axe');
             }
         }
@@ -58,27 +71,50 @@ class CraftingSystem {
         if (!toolChecks.hasShovel) {
             if (await this.inventory.hasItem('cobblestone', 1) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_shovel');
-            } else if (await this.inventory.hasItem('planks', 1) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(1) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_shovel');
             }
         }
     }
 
     async craftSticks() {
-        const hasPlanks = await this.inventory.hasItem('planks', 2);
-        if (hasPlanks) {
-            await this.craftItem('stick', 4);
-            console.log('Crafted sticks');
-            return true;
+        // Check for any type of planks
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 2);
+            if (hasPlanks) {
+                await this.craftItem('stick', 4);
+                console.log('Crafted sticks');
+                return true;
+            }
         }
         return false;
     }
 
     async craftPlanks() {
+        // Find any log in inventory
         const logs = this.bot.inventory.items().find(item => item.name.includes('log'));
         if (logs) {
-            await this.craftItem('planks', 4);
-            console.log('Crafted planks');
+            // Determine the corresponding plank type based on log type
+            let plankType = 'oak_planks'; // default
+            
+            if (logs.name.includes('oak')) plankType = 'oak_planks';
+            else if (logs.name.includes('spruce')) plankType = 'spruce_planks';
+            else if (logs.name.includes('birch')) plankType = 'birch_planks';
+            else if (logs.name.includes('jungle')) plankType = 'jungle_planks';
+            else if (logs.name.includes('acacia')) plankType = 'acacia_planks';
+            else if (logs.name.includes('dark_oak')) plankType = 'dark_oak_planks';
+            else if (logs.name.includes('mangrove')) plankType = 'mangrove_planks';
+            else if (logs.name.includes('cherry')) plankType = 'cherry_planks';
+            else if (logs.name.includes('bamboo')) plankType = 'bamboo_planks';
+            else if (logs.name.includes('crimson')) plankType = 'crimson_planks';
+            else if (logs.name.includes('warped')) plankType = 'warped_planks';
+            
+            await this.craftItem(plankType, 4);
+            console.log(`Crafted ${plankType} from ${logs.name}`);
             return true;
         }
         return false;
@@ -146,11 +182,18 @@ class CraftingSystem {
     }
 
     async craftChest() {
-        const hasPlanks = await this.inventory.hasItem('planks', 8);
-        if (hasPlanks) {
-            await this.craftItem('chest');
-            console.log('Crafted chest');
-            return true;
+        // Check for any type of planks (need 8 total)
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 8);
+            if (hasPlanks) {
+                await this.craftItem('chest');
+                console.log('Crafted chest');
+                return true;
+            }
         }
         return false;
     }
