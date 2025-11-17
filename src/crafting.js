@@ -35,12 +35,28 @@ class CraftingSystem {
         
         const toolChecks = await this.inventory.hasBasicTools();
         
+        // Ensure we have a crafting table nearby for tool crafting
+        await this.ensureCraftingTable();
+        
+        // Helper to check if we have any type of planks
+        const hasAnyPlanks = async (count) => {
+            const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                               'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                               'bamboo_planks', 'crimson_planks', 'warped_planks'];
+            for (const type of plankTypes) {
+                if (await this.inventory.countItem(type) >= count) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        
         // Craft pickaxe if missing
         if (!toolChecks.hasPickaxe) {
             if (await this.inventory.hasItem('cobblestone', 3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_pickaxe');
                 await this.notifier.notifyToolUpgrade('stone pickaxe');
-            } else if (await this.inventory.hasItem('planks', 3) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_pickaxe');
             }
         }
@@ -49,7 +65,7 @@ class CraftingSystem {
         if (!toolChecks.hasAxe) {
             if (await this.inventory.hasItem('cobblestone', 3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_axe');
-            } else if (await this.inventory.hasItem('planks', 3) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(3) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_axe');
             }
         }
@@ -58,27 +74,50 @@ class CraftingSystem {
         if (!toolChecks.hasShovel) {
             if (await this.inventory.hasItem('cobblestone', 1) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('stone_shovel');
-            } else if (await this.inventory.hasItem('planks', 1) && await this.inventory.hasItem('stick', 2)) {
+            } else if (await hasAnyPlanks(1) && await this.inventory.hasItem('stick', 2)) {
                 await this.craftItem('wooden_shovel');
             }
         }
     }
 
     async craftSticks() {
-        const hasPlanks = await this.inventory.hasItem('planks', 2);
-        if (hasPlanks) {
-            await this.craftItem('stick', 4);
-            console.log('Crafted sticks');
-            return true;
+        // Check for any type of planks
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 2);
+            if (hasPlanks) {
+                await this.craftItem('stick', 4);
+                console.log('Crafted sticks');
+                return true;
+            }
         }
         return false;
     }
 
     async craftPlanks() {
-        const logs = this.bot.inventory.items().find(item => item.name.includes('log'));
+        // Find any log in inventory
+        const logs = this.bot.inventory.items().find(item => item.name.includes('log') || item.name.includes('stem'));
         if (logs) {
-            await this.craftItem('planks', 4);
-            console.log('Crafted planks');
+            // Determine the corresponding plank type based on log type
+            let plankType = 'oak_planks'; // default
+            
+            if (logs.name.includes('oak')) plankType = 'oak_planks';
+            else if (logs.name.includes('spruce')) plankType = 'spruce_planks';
+            else if (logs.name.includes('birch')) plankType = 'birch_planks';
+            else if (logs.name.includes('jungle')) plankType = 'jungle_planks';
+            else if (logs.name.includes('acacia')) plankType = 'acacia_planks';
+            else if (logs.name.includes('dark_oak')) plankType = 'dark_oak_planks';
+            else if (logs.name.includes('mangrove')) plankType = 'mangrove_planks';
+            else if (logs.name.includes('cherry')) plankType = 'cherry_planks';
+            else if (logs.name.includes('bamboo')) plankType = 'bamboo_planks';
+            else if (logs.name.includes('crimson')) plankType = 'crimson_planks';
+            else if (logs.name.includes('warped')) plankType = 'warped_planks';
+            
+            await this.craftItem(plankType, 4);
+            console.log(`Crafted ${plankType} from ${logs.name}`);
             return true;
         }
         return false;
@@ -146,12 +185,95 @@ class CraftingSystem {
     }
 
     async craftChest() {
-        const hasPlanks = await this.inventory.hasItem('planks', 8);
-        if (hasPlanks) {
-            await this.craftItem('chest');
-            console.log('Crafted chest');
+        // Check for any type of planks (need 8 total)
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 8);
+            if (hasPlanks) {
+                await this.craftItem('chest');
+                console.log('Crafted chest');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async craftCraftingTable() {
+        // Check for any type of planks (need 4 total)
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 4);
+            if (hasPlanks) {
+                await this.craftItem('crafting_table');
+                console.log('Crafted crafting table');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async ensureCraftingTable() {
+        // Check if there's a crafting table nearby
+        const craftingTable = this.bot.findBlock({
+            matching: block => block.name === 'crafting_table',
+            maxDistance: 32
+        });
+
+        if (craftingTable) {
+            console.log('Crafting table found nearby');
             return true;
         }
+
+        // Check if we have a crafting table in inventory
+        const tableItem = await this.inventory.findItem('crafting_table');
+        if (tableItem) {
+            console.log('Crafting table in inventory, placing it');
+            await this.placeCraftingTable();
+            return true;
+        }
+
+        // Try to craft a crafting table
+        console.log('No crafting table found, attempting to craft one');
+        const crafted = await this.craftCraftingTable();
+        
+        if (crafted) {
+            await this.placeCraftingTable();
+            return true;
+        }
+
+        console.log('Unable to create crafting table - need 4 planks');
+        return false;
+    }
+
+    async placeCraftingTable() {
+        const tableItem = await this.inventory.findItem('crafting_table');
+        if (!tableItem) {
+            console.log('No crafting table to place');
+            return false;
+        }
+
+        try {
+            const Vec3 = require('vec3');
+            await this.bot.equip(tableItem, 'hand');
+            
+            // Find a suitable spot to place the crafting table (on the ground next to bot)
+            const referenceBlock = this.bot.blockAt(this.bot.entity.position.offset(0, -1, 0));
+            
+            if (referenceBlock && referenceBlock.name !== 'air') {
+                await this.bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                console.log('Placed crafting table');
+                return true;
+            }
+        } catch (error) {
+            console.error('Error placing crafting table:', error.message);
+        }
+
         return false;
     }
 

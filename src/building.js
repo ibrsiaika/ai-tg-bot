@@ -20,11 +20,11 @@ class BuildingSystem {
             // Clear the area first
             await this.clearArea(centerPos, baseSize, baseSize);
 
-            // Build floor
-            await this.buildFloor(centerPos, baseSize, baseSize, 'planks');
+            // Build floor - use oak_planks by default
+            await this.buildFloor(centerPos, baseSize, baseSize, 'oak_planks');
 
             // Build walls
-            await this.buildWalls(centerPos, baseSize, baseSize, wallHeight, 'planks');
+            await this.buildWalls(centerPos, baseSize, baseSize, wallHeight, 'oak_planks');
 
             // Add door
             await this.placeDoor(centerPos.offset(Math.floor(baseSize / 2), 0, 0));
