@@ -35,6 +35,9 @@ class CraftingSystem {
         
         const toolChecks = await this.inventory.hasBasicTools();
         
+        // Ensure we have a crafting table nearby for tool crafting
+        await this.ensureCraftingTable();
+        
         // Helper to check if we have any type of planks
         const hasAnyPlanks = async (count) => {
             const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
@@ -195,6 +198,82 @@ class CraftingSystem {
                 return true;
             }
         }
+        return false;
+    }
+
+    async craftCraftingTable() {
+        // Check for any type of planks (need 4 total)
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 4);
+            if (hasPlanks) {
+                await this.craftItem('crafting_table');
+                console.log('Crafted crafting table');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async ensureCraftingTable() {
+        // Check if there's a crafting table nearby
+        const craftingTable = this.bot.findBlock({
+            matching: block => block.name === 'crafting_table',
+            maxDistance: 32
+        });
+
+        if (craftingTable) {
+            console.log('Crafting table found nearby');
+            return true;
+        }
+
+        // Check if we have a crafting table in inventory
+        const tableItem = await this.inventory.findItem('crafting_table');
+        if (tableItem) {
+            console.log('Crafting table in inventory, placing it');
+            await this.placeCraftingTable();
+            return true;
+        }
+
+        // Try to craft a crafting table
+        console.log('No crafting table found, attempting to craft one');
+        const crafted = await this.craftCraftingTable();
+        
+        if (crafted) {
+            await this.placeCraftingTable();
+            return true;
+        }
+
+        console.log('Unable to create crafting table - need 4 planks');
+        return false;
+    }
+
+    async placeCraftingTable() {
+        const tableItem = await this.inventory.findItem('crafting_table');
+        if (!tableItem) {
+            console.log('No crafting table to place');
+            return false;
+        }
+
+        try {
+            const Vec3 = require('vec3');
+            await this.bot.equip(tableItem, 'hand');
+            
+            // Find a suitable spot to place the crafting table (on the ground next to bot)
+            const referenceBlock = this.bot.blockAt(this.bot.entity.position.offset(0, -1, 0));
+            
+            if (referenceBlock && referenceBlock.name !== 'air') {
+                await this.bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                console.log('Placed crafting table');
+                return true;
+            }
+        } catch (error) {
+            console.error('Error placing crafting table:', error.message);
+        }
+
         return false;
     }
 

@@ -258,19 +258,24 @@ class BehaviorManager {
     async craftBasicTools() {
         console.log('Crafting basic tools');
         
-        // Gather wood if needed
+        // Gather enough wood for crafting table + planks for tools and sticks
+        // Need: 4 planks (table) + 2 planks (sticks) + 7 planks (3 tools) = 13 planks minimum
+        // 13 planks = ~4 logs (each log makes 4 planks)
         const hasWood = await this.systems.inventory.hasItem('log', 4);
         if (!hasWood) {
             await this.systems.gathering.collectWood(10);
         }
 
-        // Craft planks
+        // Craft planks (multiple times to get enough)
+        await this.systems.crafting.craftPlanks();
+        await this.systems.crafting.craftPlanks();
+        await this.systems.crafting.craftPlanks();
         await this.systems.crafting.craftPlanks();
         
         // Craft sticks
         await this.systems.crafting.craftSticks();
         
-        // Craft tools
+        // Craft tools (this will ensure crafting table is available)
         await this.systems.crafting.craftBasicTools();
     }
 
