@@ -215,6 +215,18 @@ class BehaviorManager {
             });
         }
 
+        // Mine discovered ores (higher priority than random mining)
+        if (this.systems.exploration && this.systems.exploration.knownOreLocations && 
+            this.systems.exploration.knownOreLocations.size > 0) {
+            goals.push({
+                name: 'mine_discovered_ores',
+                type: 'mining',
+                priority: this.priorities.HIGH,
+                expectedReward: 9,
+                action: async () => await this.systems.gathering.mineDiscoveredOres()
+            });
+        }
+
         if (Math.random() < this.adaptiveBehavior.farmingPreference) {
             goals.push({
                 name: 'auto_farm',

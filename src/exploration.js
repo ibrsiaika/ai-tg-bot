@@ -140,9 +140,22 @@ class ExplorationSystem {
         }
 
         // Look for valuable resources
-        const ores = await this.scanForOres();
-        if (ores > 0) {
-            discoveries += ores;
+        const oreResults = await this.scanForOres();
+        if (oreResults.count > 0) {
+            discoveries += oreResults.count;
+            
+            // Store discovered ore locations for later mining
+            if (oreResults.ores.length > 0 && this.knownOreLocations) {
+                for (const ore of oreResults.ores) {
+                    if (!this.knownOreLocations.has(ore.type)) {
+                        this.knownOreLocations.set(ore.type, []);
+                    }
+                    this.knownOreLocations.get(ore.type).push({
+                        position: ore.position,
+                        timestamp: Date.now()
+                    });
+                }
+            }
         }
 
         return discoveries;
@@ -219,6 +232,7 @@ class ExplorationSystem {
     async scanForOres() {
         const ores = ['diamond_ore', 'iron_ore', 'gold_ore', 'emerald_ore', 'lapis_ore'];
         let foundCount = 0;
+        const foundOres = [];
 
         for (const ore of ores) {
             const found = this.bot.findBlock({
@@ -230,10 +244,18 @@ class ExplorationSystem {
                 foundCount++;
                 const oreName = ore.replace('_ore', '');
                 await this.notifier.send(`${oreName} ore vein spotted nearby!`);
+                
+                // Store ore location for mining
+                foundOres.push({
+                    type: oreName,
+                    position: found.position.clone(),
+                    block: found
+                });
             }
         }
 
-        return foundCount;
+        // Return both count and ore locations for mining
+        return { count: foundCount, ores: foundOres };
     }
 
     async returnToWaypoint(waypointName) {

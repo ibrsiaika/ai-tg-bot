@@ -163,8 +163,73 @@ class ResourceGatherer {
 
             if (found) {
                 await this.mineOre(ore);
+                return true; // Successfully found and mined ore
             }
         }
+        
+        return false; // No ores found
+    }
+
+    /**
+     * Mine discovered ores from exploration system
+     */
+    async mineDiscoveredOres() {
+        if (!this.exploration || !this.exploration.knownOreLocations) {
+            return false;
+        }
+
+        console.log('Attempting to mine discovered ores');
+        let minedCount = 0;
+
+        for (const [oreType, locations] of this.exploration.knownOreLocations) {
+            // Mine up to 3 locations per ore type
+            const toMine = locations.slice(0, 3);
+            
+            for (const loc of toMine) {
+                try {
+                    await this.inventory.equipBestTool('pickaxe');
+                    
+                    // Navigate to ore location
+                    await this.bot.pathfinder.goto(new goals.GoalNear(
+                        loc.position.x,
+                        loc.position.y,
+                        loc.position.z,
+                        3
+                    ));
+                    
+                    // Find the ore block (it might still be there)
+                    const oreBlock = this.bot.findBlock({
+                        matching: block => block.name.includes(oreType) && block.name.includes('ore'),
+                        maxDistance: 5
+                    });
+                    
+                    if (oreBlock) {
+                        console.log(`Mining discovered ${oreType} ore at ${oreBlock.position.toString()}`);
+                        await this.bot.pathfinder.goto(new goals.GoalBlock(
+                            oreBlock.position.x,
+                            oreBlock.position.y,
+                            oreBlock.position.z
+                        ));
+                        await this.bot.dig(oreBlock);
+                        minedCount++;
+                        await this.notifier.notifyResourceFound(oreType, 1);
+                    }
+                    
+                    await this.sleep(500);
+                } catch (error) {
+                    console.error(`Error mining discovered ${oreType}:`, error.message);
+                }
+            }
+            
+            // Remove mined locations
+            locations.splice(0, toMine.length);
+        }
+
+        if (minedCount > 0) {
+            console.log(`Successfully mined ${minedCount} discovered ore(s)`);
+        }
+        
+        return minedCount > 0;
     }
 
     async exploreForResource(resourceType) {

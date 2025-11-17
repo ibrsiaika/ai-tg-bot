@@ -35,8 +35,11 @@ class CombatSystem {
 
         console.log(`Engaging ${threats.length} hostile mob(s)`);
         
-        // Equip best weapon
+        // Equip best weapon (prioritize sword)
         await this.inventory.equipBestWeapon();
+        
+        // Try to equip shield for defense
+        await this.equipShield();
 
         // Attack closest threat
         const closest = this.findClosestThreat(threats);
@@ -226,6 +229,33 @@ class CombatSystem {
             } catch (error) {
                 console.error('Error equipping shield:', error.message);
             }
+        } else {
+            // Try to craft a shield if we don't have one
+            await this.craftShield();
+        }
+        return false;
+    }
+
+    async craftShield() {
+        // Check if we have materials: 6 planks + 1 iron ingot
+        const hasIron = await this.inventory.hasItem('iron_ingot', 1);
+        const hasPlanks = await this.inventory.hasItem('planks', 6);
+        
+        if (hasIron && hasPlanks) {
+            console.log('Crafting shield for defense');
+            try {
+                // Use the crafting system to craft shield
+                const crafted = await this.bot.craft(this.bot.registry.itemsByName.shield, 1);
+                if (crafted) {
+                    await this.notifier.send('🛡️ Shield crafted for combat defense!');
+                    console.log('Shield crafted successfully');
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error crafting shield:', error.message);
+            }
+        } else {
+            console.log('Insufficient materials for shield (need: 6 planks + 1 iron ingot)');
         }
         return false;
     }
