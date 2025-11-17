@@ -13,6 +13,8 @@ class IntelligenceSystem {
         this.MAX_RESOURCE_LOCATIONS = 50;
         this.MAX_ACTION_HISTORY = 1000;
         this.DANGER_ZONE_EXPIRY_MS = 600000; // 10 minutes
+        this.NEUTRAL_CONFIDENCE_SCORE = 0.5; // Default confidence for untested actions
+        this.REWARD_NORMALIZER = 10; // For normalizing rewards in confidence calculation
         
         // Memory systems
         this.worldKnowledge = {
@@ -171,11 +173,11 @@ class IntelligenceSystem {
     getActionConfidence(actionName) {
         const stats = this.strategySuccess.get(actionName);
         if (!stats || stats.attempts < 3) {
-            return 0.5; // Neutral confidence for new actions
+            return this.NEUTRAL_CONFIDENCE_SCORE; // Neutral confidence for new actions
         }
         
         const successRate = stats.successes / stats.attempts;
-        const rewardFactor = Math.min(stats.avgReward / 10, 1.0);
+        const rewardFactor = Math.min(stats.avgReward / this.REWARD_NORMALIZER, 1.0);
         
         return (successRate * 0.7) + (rewardFactor * 0.3);
     }
@@ -370,7 +372,7 @@ class IntelligenceSystem {
 🏆 Milestones: ${stats.milestonesAchieved}
 
 📦 Most Needed: ${mostNeeded.resource || 'None'}
-Priority: ${mostNeeded.priority.toFixed(2)}
+Priority: ${mostNeeded.priority ? mostNeeded.priority.toFixed(2) : '0.00'}
         `.trim();
         
         await this.notifier.send(report);

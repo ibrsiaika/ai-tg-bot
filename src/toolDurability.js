@@ -156,7 +156,9 @@ class ToolDurabilityManager {
             { name: 'diamond', item: 'diamond' },
             { name: 'iron', item: 'iron_ingot' },
             { name: 'stone', item: 'cobblestone' },
-            { name: 'wooden', item: 'planks' } // Matches any plank type (oak_planks, birch_planks, etc.)
+            // 'planks' matches any plank type via InventoryManager.hasItem() which uses includes()
+            // This will match oak_planks, birch_planks, spruce_planks, etc.
+            { name: 'wooden', item: 'planks' }
         ];
         
         // Find first available material
