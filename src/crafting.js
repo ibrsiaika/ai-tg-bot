@@ -96,7 +96,7 @@ class CraftingSystem {
 
     async craftPlanks() {
         // Find any log in inventory
-        const logs = this.bot.inventory.items().find(item => item.name.includes('log'));
+        const logs = this.bot.inventory.items().find(item => item.name.includes('log') || item.name.includes('stem'));
         if (logs) {
             // Determine the corresponding plank type based on log type
             let plankType = 'oak_planks'; // default
