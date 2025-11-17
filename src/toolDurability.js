@@ -156,12 +156,13 @@ class ToolDurabilityManager {
             { name: 'diamond', item: 'diamond' },
             { name: 'iron', item: 'iron_ingot' },
             { name: 'stone', item: 'cobblestone' },
-            { name: 'wooden', item: 'planks' }
+            { name: 'wooden', item: 'planks' } // Matches any plank type (oak_planks, birch_planks, etc.)
         ];
         
         // Find first available material
         let selectedMaterial = null;
         for (const mat of materials) {
+            // hasItem uses includes(), so 'planks' will match oak_planks, birch_planks, etc.
             const has = await this.inventory.hasItem(mat.item, required);
             if (has) {
                 selectedMaterial = mat.name;
