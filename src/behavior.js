@@ -6,6 +6,9 @@ class BehaviorManager {
         this.safety = safetyMonitor;
         this.intelligence = systems.intelligence; // Link to intelligence system
         
+        // Configuration constants
+        this.INTELLIGENCE_REPORT_INTERVAL = 50; // Generate report every N decisions
+        
         this.currentGoal = null;
         this.isActive = false;
         this.goalQueue = [];
@@ -283,8 +286,8 @@ class BehaviorManager {
 
         this.decisionCount++;
         
-        // Periodic intelligence report (every 50 decisions)
-        if (this.intelligence && this.decisionCount % 50 === 0) {
+        // Periodic intelligence report
+        if (this.intelligence && this.decisionCount % this.INTELLIGENCE_REPORT_INTERVAL === 0) {
             await this.intelligence.generateReport();
         }
 

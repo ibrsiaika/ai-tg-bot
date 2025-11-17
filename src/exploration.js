@@ -3,6 +3,9 @@ const Vec3 = require('vec3');
 
 // Constants
 const CHUNK_SIZE = 16;
+const MAX_TREE_LOCATIONS = 100;
+const TREE_LOCATION_EXPIRY_MS = 300000; // 5 minutes
+const MIN_TREE_DISTANCE = 5; // Don't return trees too close (likely already chopped)
 
 class ExplorationSystem {
     constructor(bot, pathfinder, notifier, inventoryManager) {
@@ -290,8 +293,8 @@ class ExplorationSystem {
             timestamp: Date.now()
         });
         
-        // Keep only last 100 tree locations
-        if (this.knownTreeLocations.length > 100) {
+        // Keep only recent tree locations
+        if (this.knownTreeLocations.length > MAX_TREE_LOCATIONS) {
             this.knownTreeLocations.shift();
         }
     }
@@ -299,7 +302,7 @@ class ExplorationSystem {
     /**
      * Find nearest known tree location
      */
-    findNearestKnownTree(maxAge = 300000) {
+    findNearestKnownTree(maxAge = TREE_LOCATION_EXPIRY_MS) {
         const now = Date.now();
         const currentPos = this.bot.entity.position;
         
@@ -311,7 +314,8 @@ class ExplorationSystem {
             if (now - tree.timestamp > maxAge) continue;
             
             const distance = currentPos.distanceTo(tree.position);
-            if (distance < minDistance && distance > 5) { // Not too close (already chopped)
+            // Don't return trees too close (likely already chopped)
+            if (distance < minDistance && distance > MIN_TREE_DISTANCE) {
                 minDistance = distance;
                 nearest = tree;
             }

@@ -9,6 +9,11 @@ class IntelligenceSystem {
         this.bot = bot;
         this.notifier = notifier;
         
+        // Configuration constants
+        this.MAX_RESOURCE_LOCATIONS = 50;
+        this.MAX_ACTION_HISTORY = 1000;
+        this.DANGER_ZONE_EXPIRY_MS = 600000; // 10 minutes
+        
         // Memory systems
         this.worldKnowledge = {
             resourceLocations: new Map(), // resource_type -> [{position, timestamp, quantity}]
@@ -56,8 +61,8 @@ class IntelligenceSystem {
             quantity: quantity
         });
         
-        // Keep only recent locations (last 50)
-        if (locations.length > 50) {
+        // Keep only recent locations
+        if (locations.length > this.MAX_RESOURCE_LOCATIONS) {
             locations.shift();
         }
         
@@ -118,8 +123,8 @@ class IntelligenceSystem {
         
         if (!danger) return null;
         
-        // Danger zones expire after 10 minutes
-        if (Date.now() - danger.timestamp > 600000) {
+        // Danger zones expire after configured time
+        if (Date.now() - danger.timestamp > this.DANGER_ZONE_EXPIRY_MS) {
             this.worldKnowledge.dangerZones.delete(key);
             return null;
         }
@@ -154,8 +159,8 @@ class IntelligenceSystem {
         stats.totalReward += reward;
         stats.avgReward = stats.totalReward / stats.attempts;
         
-        // Keep action history limited to last 1000 actions
-        if (this.actionHistory.length > 1000) {
+        // Keep action history limited
+        if (this.actionHistory.length > this.MAX_ACTION_HISTORY) {
             this.actionHistory.shift();
         }
     }
