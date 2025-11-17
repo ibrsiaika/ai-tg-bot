@@ -118,9 +118,13 @@ class InventoryManager {
     }
 
     async tossJunk() {
+        // Expanded junk list with more low-value items
         const junkItems = [
-            'dirt', 'cobblestone', 'gravel', 'andesite', 'diorite', 'granite',
-            'rotten_flesh', 'poisonous_potato', 'spider_eye'
+            'dirt', 'gravel', 'andesite', 'diorite', 'granite', 'tuff',
+            'rotten_flesh', 'poisonous_potato', 'spider_eye', 'string',
+            'bone', 'arrow', 'snowball', 'egg', 'flint', 'leather',
+            'feather', 'wheat_seeds', 'beetroot_seeds', 'pumpkin_seeds',
+            'melon_seeds', 'kelp', 'seagrass', 'dead_bush'
         ];
 
         for (const junkName of junkItems) {
@@ -129,14 +133,31 @@ class InventoryManager {
             );
 
             for (const item of items) {
-                const count = await this.countItem(junkName);
-                if (count > 64) { // Keep one stack max
-                    try {
-                        await this.bot.toss(item.type, null, item.count - 64);
-                        console.log(`Tossed ${item.count - 64} ${item.name}`);
-                    } catch (error) {
-                        console.error('Error tossing items:', error.message);
+                try {
+                    // Keep only a small amount of each junk item (1 stack max, or 16 for some items)
+                    const maxKeep = ['bone', 'arrow', 'string', 'leather', 'feather'].includes(junkName) ? 32 : 64;
+                    const count = await this.countItem(junkName);
+                    
+                    if (count > maxKeep) {
+                        await this.bot.toss(item.type, null, count - maxKeep);
+                        console.log(`Tossed ${count - maxKeep} ${item.name}`);
                     }
+                } catch (error) {
+                    console.error('Error tossing items:', error.message);
+                }
+            }
+        }
+        
+        // Also toss excess cobblestone (keep max 2 stacks)
+        const cobblestoneCount = await this.countItem('cobblestone');
+        if (cobblestoneCount > 128) {
+            const cobble = this.bot.inventory.items().find(item => item.name === 'cobblestone');
+            if (cobble) {
+                try {
+                    await this.bot.toss(cobble.type, null, cobblestoneCount - 128);
+                    console.log(`Tossed ${cobblestoneCount - 128} cobblestone (keeping 2 stacks)`);
+                } catch (error) {
+                    console.error('Error tossing cobblestone:', error.message);
                 }
             }
         }

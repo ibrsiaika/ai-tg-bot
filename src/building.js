@@ -10,12 +10,12 @@ class BuildingSystem {
     }
 
     async buildStarterBase(centerPos) {
-        console.log('Building starter base');
+        console.log('Building enhanced starter base');
         
         try {
-            // Build a simple 7x7 base with walls
-            const baseSize = 7;
-            const wallHeight = 3;
+            // Build an enhanced 9x9 base with better features
+            const baseSize = 9;
+            const wallHeight = 4;
 
             // Clear the area first
             await this.clearArea(centerPos, baseSize, baseSize);
@@ -25,20 +25,92 @@ class BuildingSystem {
 
             // Build walls
             await this.buildWalls(centerPos, baseSize, baseSize, wallHeight, 'oak_planks');
+            
+            // Build roof for protection
+            await this.buildRoof(centerPos, baseSize, baseSize, 'oak_planks');
 
             // Add door
             await this.placeDoor(centerPos.offset(Math.floor(baseSize / 2), 0, 0));
 
             // Add lighting
             await this.lightUpArea(centerPos, baseSize, baseSize);
+            
+            // Place chests for storage
+            await this.placeStorageChests(centerPos);
+            
+            // Place crafting table
+            await this.placeCraftingTable(centerPos.offset(-2, 0, -2));
+            
+            // Place furnace
+            await this.placeFurnace(centerPos.offset(2, 0, -2));
 
-            await this.notifier.notifyBaseExpansion('starter base');
-            console.log('Starter base completed');
+            await this.notifier.notifyBaseExpansion('enhanced starter base');
+            console.log('Enhanced starter base completed');
             return true;
         } catch (error) {
             console.error('Error building starter base:', error.message);
             return false;
         }
+    }
+
+    async buildRoof(centerPos, width, depth, material) {
+        console.log(`Building roof with ${material}`);
+        
+        const block = await this.inventory.findItem(material);
+        if (!block) {
+            console.log(`No ${material} available for roof`);
+            return false;
+        }
+
+        const halfWidth = Math.floor(width / 2);
+        const halfDepth = Math.floor(depth / 2);
+        const roofHeight = 3; // Roof at height 3
+
+        await this.bot.equip(block, 'hand');
+
+        for (let x = -halfWidth; x <= halfWidth; x++) {
+            for (let z = -halfDepth; z <= halfDepth; z++) {
+                const targetPos = centerPos.offset(x, roofHeight, z);
+                try {
+                    await this.placeBlockAt(targetPos, material);
+                    await this.sleep(100);
+                } catch (error) {
+                    // Continue if placement fails
+                }
+            }
+        }
+
+        return true;
+    }
+
+    async placeStorageChests(centerPos) {
+        console.log('Placing storage chests');
+        
+        const chestPositions = [
+            centerPos.offset(-3, 0, 3),
+            centerPos.offset(-2, 0, 3),
+            centerPos.offset(2, 0, 3),
+            centerPos.offset(3, 0, 3)
+        ];
+
+        for (const pos of chestPositions) {
+            await this.placeBlockAt(pos, 'chest');
+            await this.sleep(300);
+        }
+
+        return true;
+    }
+
+    async placeCraftingTable(position) {
+        console.log('Placing crafting table');
+        await this.placeBlockAt(position, 'crafting_table');
+        return true;
+    }
+
+    async placeFurnace(position) {
+        console.log('Placing furnace');
+        await this.placeBlockAt(position, 'furnace');
+        return true;
     }
 
     async clearArea(centerPos, width, depth) {
@@ -372,6 +444,34 @@ class BuildingSystem {
         }
 
         return true;
+    }
+
+    async placeBed(position) {
+        console.log('Placing bed');
+        
+        const bed = await this.inventory.findItem('bed');
+        if (!bed) {
+            console.log('No bed available to place');
+            return false;
+        }
+
+        try {
+            await this.bot.equip(bed, 'hand');
+            
+            // Find a suitable spot to place the bed (on the ground)
+            const referenceBlock = this.bot.blockAt(position.offset(0, -1, 0));
+            
+            if (referenceBlock && referenceBlock.name !== 'air') {
+                await this.bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                console.log('Placed bed at position');
+                await this.notifier.send('Placed bed in base');
+                return true;
+            }
+        } catch (error) {
+            console.error('Error placing bed:', error.message);
+        }
+
+        return false;
     }
 
     sleep(ms) {

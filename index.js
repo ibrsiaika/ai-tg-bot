@@ -1,6 +1,7 @@
 require('dotenv').config();
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const collectBlock = require('mineflayer-collectblock').plugin;
 const Vec3 = require('vec3');
 
 // Import our systems
@@ -76,7 +77,31 @@ class AutonomousMinecraftBot {
         });
 
         this.bot.on('error', (err) => {
+            // Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
+            if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError')) {
+                console.warn('⚠ Protocol packet parsing error (non-fatal):', err.message);
+                // Log but don't crash - the bot can continue operating
+                return;
+            }
+            
             console.error('✗ Bot error:', err);
+        });
+        
+        // Add error handler for the underlying client to catch PartialReadError at the protocol level
+        this.bot.once('inject_allowed', () => {
+            if (this.bot._client) {
+                this.bot._client.on('error', (err) => {
+                    // Handle PartialReadError and other protocol errors gracefully
+                    if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError') || 
+                        err.message?.includes('Read error')) {
+                        console.warn('⚠ Client protocol parsing error (non-fatal):', err.message || err.name);
+                        // Don't let these errors crash the bot
+                        return;
+                    }
+                    // Let other errors bubble up to the bot error handler
+                    this.bot.emit('error', err);
+                });
+            }
         });
 
         this.bot.on('end', () => {
@@ -119,6 +144,10 @@ class AutonomousMinecraftBot {
         const mcData = require('minecraft-data')(this.bot.version);
         const defaultMove = new Movements(this.bot, mcData);
         this.bot.pathfinder.setMovements(defaultMove);
+
+        // Load collectblock plugin for automatic item collection
+        this.bot.loadPlugin(collectBlock);
+        console.log('✓ Collectblock plugin loaded');
 
         // Initialize Telegram notifier
         this.systems.notifier = new TelegramNotifier(

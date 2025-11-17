@@ -262,6 +262,87 @@ class BehaviorManager {
             }
         }
 
+        // Smelting check - smelt raw ores when available
+        const hasRawOres = await this.systems.inventory.hasItem('raw_iron', 1) ||
+                          await this.systems.inventory.hasItem('raw_gold', 1) ||
+                          await this.systems.inventory.hasItem('raw_copper', 1);
+        
+        if (hasRawOres && Math.random() < 0.3) {
+            goals.push({
+                name: 'smelt_ores',
+                type: 'crafting',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 7,
+                action: async () => await this.systems.crafting.smeltOre()
+            });
+        }
+
+        // Food cooking check - cook raw food when available
+        const hasRawFood = await this.systems.inventory.hasItem('raw_beef', 1) ||
+                          await this.systems.inventory.hasItem('raw_porkchop', 1) ||
+                          await this.systems.inventory.hasItem('raw_chicken', 1) ||
+                          await this.systems.inventory.hasItem('raw_mutton', 1);
+        
+        if (hasRawFood && Math.random() < 0.2) {
+            goals.push({
+                name: 'cook_food',
+                type: 'crafting',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 5,
+                action: async () => await this.systems.crafting.cookFood()
+            });
+        }
+
+        // Death recovery - high priority if we died recently
+        if (this.systems.exploration.lastDeathPosition && Math.random() < 0.5) {
+            goals.push({
+                name: 'recover_death_items',
+                type: 'recovery',
+                priority: this.priorities.HIGH,
+                expectedReward: 9,
+                action: async () => await this.systems.exploration.recoverDeathItems()
+            });
+        }
+
+        // Bed crafting check - craft bed if we don't have one
+        const hasBed = await this.systems.inventory.findItem('bed');
+        const hasWool = await this.systems.inventory.hasItem('wool', 3);
+        
+        if (!hasBed && hasWool && Math.random() < 0.2) {
+            goals.push({
+                name: 'craft_bed',
+                type: 'crafting',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 6,
+                action: async () => await this.craftBed()
+            });
+        } else if (hasBed && Math.random() < 0.1) {
+            // Place bed in base if we have one
+            goals.push({
+                name: 'place_bed',
+                type: 'building',
+                priority: this.priorities.LOW,
+                expectedReward: 5,
+                action: async () => await this.systems.building.placeBed(this.bot.entity.position)
+            });
+        }
+
+        // Raid loot collection - check for nearby items after combat
+        const nearbyItems = Object.values(this.bot.entities).filter(entity => 
+            entity.type === 'object' && 
+            entity.objectType === 'Item'
+        );
+        
+        if (nearbyItems.length > 5 && Math.random() < 0.4) {
+            goals.push({
+                name: 'collect_raid_loot',
+                type: 'combat',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 7,
+                action: async () => await this.systems.combat.collectRaidLoot()
+            });
+        }
+
         // Advanced base building
         if (Math.random() < 0.1 && this.systems.advancedBase) {
             goals.push({
@@ -529,13 +610,27 @@ class BehaviorManager {
         // Craft multiple items in sequence
         await this.systems.crafting.craftTorches();
         await this.systems.crafting.craftBasicTools();
+        
+        // Try to craft chest if we have materials
+        await this.systems.crafting.craftChest();
+        
         await this.sleep(1000);
+    }
+
+    async craftBed() {
+        console.log('Attempting to craft bed');
+        
+        const success = await this.systems.crafting.craftBed();
+        if (success) {
+            await this.notifier.send('Crafted a bed for sleeping');
+        }
+        return success;
     }
 
     async upgradeEquipment() {
         console.log('Upgrading equipment');
         
-        // Try to upgrade to better materials
+        // Try to upgrade to better materials - prioritize diamond, then iron
         const hasDiamond = await this.systems.inventory.hasItem('diamond', 3);
         const hasIron = await this.systems.inventory.hasItem('iron_ingot', 3);
         
@@ -605,25 +700,54 @@ Tools Upgraded: ${this.performanceMetrics.toolsUpgraded}`;
 
             const chestWindow = await this.bot.openContainer(chest);
             
-            // Store valuable items
+            // Store valuable items first - prioritize diamond, gold, iron, emerald
             const valuableItems = this.bot.inventory.items().filter(item =>
                 item.name.includes('diamond') ||
-                item.name.includes('iron') ||
+                item.name.includes('emerald') ||
                 item.name.includes('gold') ||
-                item.name.includes('emerald')
+                item.name.includes('iron') ||
+                item.name.includes('netherite') ||
+                item.name.includes('lapis') ||
+                item.name.includes('redstone') ||
+                item.name.includes('enchanted')
             );
 
             for (const item of valuableItems) {
                 try {
-                    await chestWindow.deposit(item.type, null, item.count);
-                    await this.sleep(200);
+                    // Keep at least 1 of each valuable item in inventory
+                    const depositCount = item.count > 1 ? item.count - 1 : 0;
+                    if (depositCount > 0) {
+                        await chestWindow.deposit(item.type, null, depositCount);
+                        await this.sleep(200);
+                    }
+                } catch (error) {
+                    // Chest might be full
+                }
+            }
+            
+            // Then store excess building materials
+            const buildingMaterials = this.bot.inventory.items().filter(item =>
+                item.name.includes('planks') ||
+                item.name.includes('log') ||
+                item.name.includes('cobblestone') ||
+                item.name.includes('stone')
+            );
+            
+            for (const item of buildingMaterials) {
+                try {
+                    // Keep 64 of each building material max
+                    const depositCount = item.count > 64 ? item.count - 64 : 0;
+                    if (depositCount > 0) {
+                        await chestWindow.deposit(item.type, null, depositCount);
+                        await this.sleep(200);
+                    }
                 } catch (error) {
                     // Chest might be full
                 }
             }
 
             chestWindow.close();
-            console.log('Items stored in chest');
+            console.log('Items stored in chest (prioritizing valuables)');
         } catch (error) {
             console.error('Error storing items:', error.message);
         }

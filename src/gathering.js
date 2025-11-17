@@ -128,6 +128,12 @@ class ResourceGatherer {
         console.log(`Mining ${oreType}`);
         
         try {
+            // Check inventory space before mining
+            if (this.inventory.isInventoryFull()) {
+                console.log('Inventory full before mining, managing inventory');
+                await this.manageFullInventory();
+            }
+
             await this.inventory.equipBestTool('pickaxe');
 
             const ore = this.bot.findBlock({
@@ -140,11 +146,28 @@ class ResourceGatherer {
                 return false;
             }
 
+            const orePosition = ore.position.clone();
             await this.notifier.notifyMining(oreType, ore.position.y);
-            await this.bot.pathfinder.goto(new goals.GoalBlock(ore.position.x, ore.position.y, ore.position.z));
+            
+            // Add timeout to pathfinder to prevent "Took too long to decide path to goal" errors
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalBlock(ore.position.x, ore.position.y, ore.position.z));
+            } catch (pathError) {
+                // If pathfinding fails, try getting closer with a less strict goal
+                if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                    console.log(`Pathfinding timeout, trying alternative approach for ${oreType}`);
+                    await this.bot.pathfinder.goto(new goals.GoalNear(ore.position.x, ore.position.y, ore.position.z, 3));
+                } else {
+                    throw pathError;
+                }
+            }
+            
             await this.bot.dig(ore);
             
-            console.log(`Mined ${oreType} ore`);
+            // Wait for drops and collect them
+            await this.collectDrops(orePosition);
+            
+            console.log(`Mined ${oreType} ore and collected drops`);
             return true;
         } catch (error) {
             console.error(`Error mining ${oreType}:`, error.message);
@@ -152,8 +175,121 @@ class ResourceGatherer {
         }
     }
 
+    async collectDrops(position, waitTime = 1000) {
+        // Wait for items to drop
+        await this.sleep(waitTime);
+        
+        try {
+            // Use collectblock plugin if available
+            if (this.bot.collectBlock) {
+                const droppedItems = Object.values(this.bot.entities).filter(entity =>
+                    entity.type === 'object' &&
+                    entity.objectType === 'Item' &&
+                    entity.position.distanceTo(position) < 5
+                );
+
+                for (const item of droppedItems) {
+                    try {
+                        // Check inventory before collecting
+                        if (this.inventory.isInventoryFull()) {
+                            console.log('Inventory full during collection, managing');
+                            await this.manageFullInventory();
+                        }
+                        
+                        await this.bot.collectBlock.collect(item);
+                        console.log('Collected dropped item');
+                    } catch (collectError) {
+                        console.log('Could not collect item:', collectError.message);
+                    }
+                }
+            } else {
+                // Fallback: navigate close to position for auto-pickup
+                await this.bot.pathfinder.goto(new goals.GoalNear(
+                    position.x,
+                    position.y,
+                    position.z,
+                    1
+                ));
+                await this.sleep(500);
+            }
+        } catch (error) {
+            console.error('Error collecting drops:', error.message);
+        }
+    }
+
+    async manageFullInventory() {
+        console.log('Managing full inventory during mining');
+        
+        // Try to toss junk first
+        await this.inventory.tossJunk();
+        
+        // If still full, try to find and use nearby chest
+        if (this.inventory.isInventoryFull()) {
+            const chest = this.bot.findBlock({
+                matching: block => block.name === 'chest',
+                maxDistance: 16
+            });
+            
+            if (chest) {
+                console.log('Found nearby chest, storing items');
+                try {
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(
+                        chest.position.x,
+                        chest.position.y,
+                        chest.position.z
+                    ));
+                    
+                    const chestWindow = await this.bot.openContainer(chest);
+                    
+                    // Store excess cobblestone and dirt
+                    const excessItems = this.bot.inventory.items().filter(item =>
+                        item.name === 'cobblestone' ||
+                        item.name === 'dirt' ||
+                        item.name === 'gravel' ||
+                        item.name === 'andesite' ||
+                        item.name === 'diorite' ||
+                        item.name === 'granite'
+                    );
+                    
+                    for (const item of excessItems) {
+                        try {
+                            await chestWindow.deposit(item.type, null, item.count);
+                        } catch (e) {
+                            // Chest might be full
+                        }
+                    }
+                    
+                    chestWindow.close();
+                    console.log('Stored excess items in chest');
+                } catch (error) {
+                    console.error('Error using chest:', error.message);
+                }
+            }
+        }
+        
+        // Last resort: toss more aggressively
+        if (this.inventory.isInventoryFull()) {
+            console.log('Still full, tossing common items');
+            const commonItems = this.bot.inventory.items().filter(item =>
+                item.name === 'cobblestone' ||
+                item.name === 'dirt' ||
+                item.name === 'gravel'
+            );
+            
+            for (const item of commonItems) {
+                try {
+                    await this.bot.toss(item.type, null, Math.floor(item.count / 2));
+                    console.log(`Tossed ${Math.floor(item.count / 2)} ${item.name}`);
+                } catch (error) {
+                    // Continue
+                }
+            }
+        }
+    }
+
     async searchForValuableOres() {
-        const valuableOres = ['diamond', 'iron', 'gold', 'coal', 'lapis', 'redstone', 'emerald'];
+        // Prioritize higher-value ores first: diamond, gold, iron, then others
+        const valuableOres = ['diamond', 'emerald', 'gold', 'iron', 'lapis', 'redstone', 'copper', 'coal'];
         
         for (const ore of valuableOres) {
             const found = this.bot.findBlock({
@@ -189,13 +325,21 @@ class ResourceGatherer {
                 try {
                     await this.inventory.equipBestTool('pickaxe');
                     
-                    // Navigate to ore location
-                    await this.bot.pathfinder.goto(new goals.GoalNear(
-                        loc.position.x,
-                        loc.position.y,
-                        loc.position.z,
-                        3
-                    ));
+                    // Navigate to ore location with timeout handling
+                    try {
+                        await this.bot.pathfinder.goto(new goals.GoalNear(
+                            loc.position.x,
+                            loc.position.y,
+                            loc.position.z,
+                            3
+                        ));
+                    } catch (pathError) {
+                        if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                            console.log(`Pathfinding timeout to ${oreType} ore, skipping location`);
+                            continue; // Skip this location and try the next one
+                        }
+                        throw pathError; // Re-throw if it's a different error
+                    }
                     
                     // Find the ore block (it might still be there)
                     const oreBlock = this.bot.findBlock({
@@ -205,12 +349,35 @@ class ResourceGatherer {
                     
                     if (oreBlock) {
                         console.log(`Mining discovered ${oreType} ore at ${oreBlock.position.toString()}`);
-                        await this.bot.pathfinder.goto(new goals.GoalBlock(
-                            oreBlock.position.x,
-                            oreBlock.position.y,
-                            oreBlock.position.z
-                        ));
+                        
+                        const orePosition = oreBlock.position.clone();
+                        
+                        // Navigate to the exact ore block with timeout handling
+                        try {
+                            await this.bot.pathfinder.goto(new goals.GoalBlock(
+                                oreBlock.position.x,
+                                oreBlock.position.y,
+                                oreBlock.position.z
+                            ));
+                        } catch (pathError) {
+                            if (pathError.message?.includes('Took too long') || pathError.message?.includes('timeout')) {
+                                console.log(`Pathfinding timeout to exact ore block, trying nearby approach`);
+                                await this.bot.pathfinder.goto(new goals.GoalNear(
+                                    oreBlock.position.x,
+                                    oreBlock.position.y,
+                                    oreBlock.position.z,
+                                    2
+                                ));
+                            } else {
+                                throw pathError;
+                            }
+                        }
+                        
                         await this.bot.dig(oreBlock);
+                        
+                        // Collect drops
+                        await this.collectDrops(orePosition);
+                        
                         minedCount++;
                         await this.notifier.notifyResourceFound(oreType, 1);
                     }

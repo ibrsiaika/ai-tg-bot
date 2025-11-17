@@ -218,6 +218,48 @@ class CraftingSystem {
         return false;
     }
 
+    async craftBed() {
+        // Need 3 planks and 3 wool
+        const plankTypes = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+                           'bamboo_planks', 'crimson_planks', 'warped_planks'];
+        
+        // Check for wool (any color)
+        const hasWool = await this.inventory.hasItem('wool', 3);
+        
+        if (!hasWool) {
+            console.log('Need 3 wool to craft bed');
+            return false;
+        }
+        
+        // Check for planks
+        for (const plankType of plankTypes) {
+            const hasPlanks = await this.inventory.hasItem(plankType, 3);
+            if (hasPlanks) {
+                // Determine bed color based on wool color
+                const woolTypes = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 
+                                  'lime', 'pink', 'gray', 'light_gray', 'cyan', 'purple', 
+                                  'blue', 'brown', 'green', 'red', 'black'];
+                
+                let bedType = 'red_bed'; // default
+                for (const color of woolTypes) {
+                    const hasColorWool = await this.inventory.hasItem(`${color}_wool`, 3);
+                    if (hasColorWool) {
+                        bedType = `${color}_bed`;
+                        break;
+                    }
+                }
+                
+                await this.craftItem(bedType);
+                console.log(`Crafted ${bedType}`);
+                return true;
+            }
+        }
+        
+        console.log('Need 3 planks to craft bed');
+        return false;
+    }
+
     async ensureCraftingTable() {
         // Check if there's a crafting table nearby
         const craftingTable = this.bot.findBlock({
@@ -284,30 +326,154 @@ class CraftingSystem {
         });
 
         if (!furnace) {
-            console.log('No furnace nearby');
+            console.log('No furnace nearby, attempting to craft one');
+            await this.craftFurnace();
             return false;
         }
 
-        const rawOres = ['raw_iron', 'raw_gold', 'raw_copper'];
-        const fuel = await this.inventory.findItem('coal') || await this.inventory.findItem('charcoal');
+        const rawOres = [
+            { raw: 'raw_iron', result: 'iron_ingot' },
+            { raw: 'raw_gold', result: 'gold_ingot' },
+            { raw: 'raw_copper', result: 'copper_ingot' }
+        ];
+        
+        const fuel = await this.inventory.findItem('coal') || 
+                     await this.inventory.findItem('charcoal') ||
+                     await this.inventory.findItem('coal_block');
 
         if (!fuel) {
             console.log('No fuel for smelting');
             return false;
         }
 
+        let smelted = false;
         for (const ore of rawOres) {
-            const hasOre = await this.inventory.hasItem(ore, 1);
+            const hasOre = await this.inventory.hasItem(ore.raw, 1);
             if (hasOre) {
                 try {
-                    await this.bot.pathfinder.goto(new goals.GoalBlock(furnace.position.x, furnace.position.y, furnace.position.z));
-                    // Smelting logic would go here - mineflayer has furnace plugins for this
-                    console.log(`Started smelting ${ore}`);
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(
+                        furnace.position.x, 
+                        furnace.position.y, 
+                        furnace.position.z
+                    ));
+                    
+                    const furnaceWindow = await this.bot.openFurnace(furnace);
+                    
+                    // Put ore in input slot
+                    const oreItem = await this.inventory.findItem(ore.raw);
+                    if (oreItem) {
+                        await furnaceWindow.putInput(oreItem.type, null, oreItem.count);
+                    }
+                    
+                    // Put fuel in fuel slot
+                    const fuelItem = await this.inventory.findItem('coal') || 
+                                    await this.inventory.findItem('charcoal');
+                    if (fuelItem) {
+                        await furnaceWindow.putFuel(fuelItem.type, null, Math.min(fuelItem.count, 8));
+                    }
+                    
+                    console.log(`Smelting ${ore.raw} into ${ore.result}`);
+                    
+                    // Wait for smelting to complete
+                    await this.sleep(10000); // 10 seconds
+                    
+                    // Take output
+                    await furnaceWindow.takeOutput();
+                    furnaceWindow.close();
+                    
+                    smelted = true;
+                    await this.notifier.send(`Smelted ${ore.raw} into ${ore.result}`);
                 } catch (error) {
-                    console.error('Error smelting:', error.message);
+                    console.error(`Error smelting ${ore.raw}:`, error.message);
                 }
             }
         }
+        
+        return smelted;
+    }
+
+    async cookFood() {
+        console.log('Checking for raw food to cook');
+        
+        const furnace = this.bot.findBlock({
+            matching: block => block.name === 'furnace' || block.name === 'smoker',
+            maxDistance: 32
+        });
+
+        if (!furnace) {
+            console.log('No furnace/smoker nearby for cooking');
+            return false;
+        }
+
+        const rawFoods = [
+            { raw: 'raw_beef', cooked: 'cooked_beef' },
+            { raw: 'raw_porkchop', cooked: 'cooked_porkchop' },
+            { raw: 'raw_chicken', cooked: 'cooked_chicken' },
+            { raw: 'raw_mutton', cooked: 'cooked_mutton' },
+            { raw: 'raw_rabbit', cooked: 'cooked_rabbit' },
+            { raw: 'raw_cod', cooked: 'cooked_cod' },
+            { raw: 'raw_salmon', cooked: 'cooked_salmon' },
+            { raw: 'potato', cooked: 'baked_potato' },
+            { raw: 'kelp', cooked: 'dried_kelp' }
+        ];
+
+        const fuel = await this.inventory.findItem('coal') || 
+                     await this.inventory.findItem('charcoal') ||
+                     await this.inventory.findItem('coal_block');
+
+        if (!fuel) {
+            console.log('No fuel for cooking');
+            return false;
+        }
+
+        let cooked = false;
+        for (const food of rawFoods) {
+            const hasFood = await this.inventory.hasItem(food.raw, 1);
+            if (hasFood) {
+                try {
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(
+                        furnace.position.x, 
+                        furnace.position.y, 
+                        furnace.position.z
+                    ));
+                    
+                    const furnaceWindow = await this.bot.openFurnace(furnace);
+                    
+                    // Put raw food in input slot
+                    const foodItem = await this.inventory.findItem(food.raw);
+                    if (foodItem) {
+                        await furnaceWindow.putInput(foodItem.type, null, Math.min(foodItem.count, 8));
+                    }
+                    
+                    // Put fuel in fuel slot
+                    const fuelItem = await this.inventory.findItem('coal') || 
+                                    await this.inventory.findItem('charcoal');
+                    if (fuelItem) {
+                        await furnaceWindow.putFuel(fuelItem.type, null, 2); // Less fuel for cooking
+                    }
+                    
+                    console.log(`Cooking ${food.raw} into ${food.cooked}`);
+                    
+                    // Wait for cooking to complete
+                    await this.sleep(8000); // 8 seconds
+                    
+                    // Take output
+                    await furnaceWindow.takeOutput();
+                    furnaceWindow.close();
+                    
+                    cooked = true;
+                    console.log(`Cooked ${food.raw} into ${food.cooked}`);
+                } catch (error) {
+                    console.error(`Error cooking ${food.raw}:`, error.message);
+                }
+            }
+        }
+        
+        return cooked;
+    }
+    
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 
