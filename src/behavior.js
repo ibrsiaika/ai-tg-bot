@@ -212,16 +212,6 @@ class BehaviorManager {
         };
     }
 
-        // Sort by priority
-        goals.sort((a, b) => b.priority - a.priority);
-
-        return goals[0] || {
-            name: 'idle_explore',
-            priority: this.priorities.LOW,
-            action: async () => await this.explore()
-        };
-    }
-
     async executeGoal(goal) {
         try {
             console.log(`Starting: ${goal.name}`);
