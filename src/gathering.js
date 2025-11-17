@@ -166,7 +166,8 @@ class ResourceGatherer {
     }
 
     async searchForValuableOres() {
-        const valuableOres = ['diamond', 'iron', 'gold', 'coal', 'lapis', 'redstone', 'emerald'];
+        // Prioritize higher-value ores first: diamond, gold, iron, then others
+        const valuableOres = ['diamond', 'emerald', 'gold', 'iron', 'lapis', 'redstone', 'copper', 'coal'];
         
         for (const ore of valuableOres) {
             const found = this.bot.findBlock({

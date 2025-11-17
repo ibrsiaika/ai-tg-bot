@@ -374,6 +374,34 @@ class BuildingSystem {
         return true;
     }
 
+    async placeBed(position) {
+        console.log('Placing bed');
+        
+        const bed = await this.inventory.findItem('bed');
+        if (!bed) {
+            console.log('No bed available to place');
+            return false;
+        }
+
+        try {
+            await this.bot.equip(bed, 'hand');
+            
+            // Find a suitable spot to place the bed (on the ground)
+            const referenceBlock = this.bot.blockAt(position.offset(0, -1, 0));
+            
+            if (referenceBlock && referenceBlock.name !== 'air') {
+                await this.bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                console.log('Placed bed at position');
+                await this.notifier.send('Placed bed in base');
+                return true;
+            }
+        } catch (error) {
+            console.error('Error placing bed:', error.message);
+        }
+
+        return false;
+    }
+
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
