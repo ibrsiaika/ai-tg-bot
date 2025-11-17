@@ -321,14 +321,14 @@ class IntelligenceSystem {
     /**
      * Mark a milestone as achieved
      */
-    achieveMilestone(milestoneName) {
+    async achieveMilestone(milestoneName) {
         this.achievedMilestones.push({
             name: milestoneName,
             timestamp: Date.now()
         });
         
         console.log(`Milestone achieved: ${milestoneName}`);
-        this.notifier.send(`🎯 Milestone: ${milestoneName}`);
+        await this.notifier.send(`🎯 Milestone: ${milestoneName}`);
     }
 
     /**

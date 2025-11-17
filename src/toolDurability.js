@@ -140,7 +140,7 @@ class ToolDurabilityManager {
      * Craft a replacement tool
      */
     async craftReplacementTool(toolType) {
-        // Determine material requirements based on tool type
+        // Material requirements and checks
         const materialRequirements = {
             pickaxe: 3,
             axe: 3,
@@ -151,38 +151,41 @@ class ToolDurabilityManager {
         
         const required = materialRequirements[toolType] || 3;
         
-        // Determine what material to use based on availability
-        const hasDiamond = await this.inventory.hasItem('diamond', required);
-        const hasIron = await this.inventory.hasItem('iron_ingot', required);
-        const hasStone = await this.inventory.hasItem('cobblestone', required);
-        const hasWood = await this.inventory.hasItem('planks', required);
+        // Define material options in priority order
+        const materials = [
+            { name: 'diamond', item: 'diamond' },
+            { name: 'iron', item: 'iron_ingot' },
+            { name: 'stone', item: 'cobblestone' },
+            { name: 'wooden', item: 'planks' }
+        ];
         
-        let material = 'wooden';
-        if (hasDiamond) {
-            material = 'diamond';
-        } else if (hasIron) {
-            material = 'iron';
-        } else if (hasStone) {
-            material = 'stone';
-        } else if (hasWood) {
-            material = 'wooden';
-        } else {
-            return false; // No materials
+        // Find first available material
+        let selectedMaterial = null;
+        for (const mat of materials) {
+            const has = await this.inventory.hasItem(mat.item, required);
+            if (has) {
+                selectedMaterial = mat.name;
+                break;
+            }
+        }
+        
+        if (!selectedMaterial) {
+            return false; // No materials available
         }
         
         try {
             switch (toolType) {
                 case 'pickaxe':
-                    await this.crafting.craftPickaxe(material);
+                    await this.crafting.craftPickaxe(selectedMaterial);
                     break;
                 case 'axe':
-                    await this.crafting.craftAxe(material);
+                    await this.crafting.craftAxe(selectedMaterial);
                     break;
                 case 'shovel':
-                    await this.crafting.craftShovel(material);
+                    await this.crafting.craftShovel(selectedMaterial);
                     break;
                 case 'sword':
-                    await this.crafting.craftSword(material);
+                    await this.crafting.craftSword(selectedMaterial);
                     break;
             }
             return true;

@@ -1,6 +1,9 @@
 const { goals } = require('mineflayer-pathfinder');
 const Vec3 = require('vec3');
 
+// Constants
+const CHUNK_SIZE = 16;
+
 class ExplorationSystem {
     constructor(bot, pathfinder, notifier, inventoryManager) {
         this.bot = bot;
@@ -34,12 +37,12 @@ class ExplorationSystem {
         console.log(`Waypoint added: ${name} at ${position.toString()}`);
     }
 
-    hasVisited(position, radius = 16) {
+    hasVisited(position, radius = CHUNK_SIZE) {
         const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
         return this.visitedLocations.has(key);
     }
 
-    markVisited(position, radius = 16) {
+    markVisited(position, radius = CHUNK_SIZE) {
         const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
         this.visitedLocations.add(key);
     }
@@ -321,8 +324,8 @@ class ExplorationSystem {
      * Mark a chunk as explored
      */
     markChunkExplored(position) {
-        const chunkX = Math.floor(position.x / 16);
-        const chunkZ = Math.floor(position.z / 16);
+        const chunkX = Math.floor(position.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(position.z / CHUNK_SIZE);
         const key = `${chunkX},${chunkZ}`;
         this.exploredChunks.add(key);
     }
@@ -331,8 +334,8 @@ class ExplorationSystem {
      * Check if chunk has been explored
      */
     isChunkExplored(position) {
-        const chunkX = Math.floor(position.x / 16);
-        const chunkZ = Math.floor(position.z / 16);
+        const chunkX = Math.floor(position.x / CHUNK_SIZE);
+        const chunkZ = Math.floor(position.z / CHUNK_SIZE);
         const key = `${chunkX},${chunkZ}`;
         return this.exploredChunks.has(key);
     }
@@ -342,8 +345,8 @@ class ExplorationSystem {
      */
     findUnexploredChunk(maxDistance = 10) {
         const currentPos = this.bot.entity.position;
-        const currentChunkX = Math.floor(currentPos.x / 16);
-        const currentChunkZ = Math.floor(currentPos.z / 16);
+        const currentChunkX = Math.floor(currentPos.x / CHUNK_SIZE);
+        const currentChunkZ = Math.floor(currentPos.z / CHUNK_SIZE);
         
         // Search in expanding rings
         for (let radius = 1; radius <= maxDistance; radius++) {
@@ -355,7 +358,7 @@ class ExplorationSystem {
                     
                     if (!this.exploredChunks.has(key)) {
                         // Return center of unexplored chunk
-                        return new Vec3(chunkX * 16 + 8, currentPos.y, chunkZ * 16 + 8);
+                        return new Vec3(chunkX * CHUNK_SIZE + 8, currentPos.y, chunkZ * CHUNK_SIZE + 8);
                     }
                 }
             }
