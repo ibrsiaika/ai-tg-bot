@@ -175,20 +175,30 @@ class ToolDurabilityManager {
         }
         
         try {
+            // Construct the item name in Minecraft format (material_tooltype)
+            let itemName = '';
             switch (toolType) {
                 case 'pickaxe':
-                    await this.crafting.craftPickaxe(selectedMaterial);
+                    itemName = `${selectedMaterial}_pickaxe`;
                     break;
                 case 'axe':
-                    await this.crafting.craftAxe(selectedMaterial);
+                    itemName = `${selectedMaterial}_axe`;
                     break;
                 case 'shovel':
-                    await this.crafting.craftShovel(selectedMaterial);
+                    itemName = `${selectedMaterial}_shovel`;
                     break;
                 case 'sword':
-                    await this.crafting.craftSword(selectedMaterial);
+                    itemName = `${selectedMaterial}_sword`;
                     break;
+                case 'hoe':
+                    itemName = `${selectedMaterial}_hoe`;
+                    break;
+                default:
+                    console.error(`Unknown tool type: ${toolType}`);
+                    return false;
             }
+            
+            await this.crafting.craftItem(itemName);
             return true;
         } catch (error) {
             console.error(`Error crafting ${toolType}:`, error.message);
