@@ -140,11 +140,22 @@ class ToolDurabilityManager {
      * Craft a replacement tool
      */
     async craftReplacementTool(toolType) {
+        // Determine material requirements based on tool type
+        const materialRequirements = {
+            pickaxe: 3,
+            axe: 3,
+            shovel: 1,
+            sword: 2,
+            hoe: 2
+        };
+        
+        const required = materialRequirements[toolType] || 3;
+        
         // Determine what material to use based on availability
-        const hasDiamond = await this.inventory.hasItem('diamond', 3);
-        const hasIron = await this.inventory.hasItem('iron_ingot', 3);
-        const hasStone = await this.inventory.hasItem('cobblestone', 3);
-        const hasWood = await this.inventory.hasItem('planks', 3);
+        const hasDiamond = await this.inventory.hasItem('diamond', required);
+        const hasIron = await this.inventory.hasItem('iron_ingot', required);
+        const hasStone = await this.inventory.hasItem('cobblestone', required);
+        const hasWood = await this.inventory.hasItem('planks', required);
         
         let material = 'wooden';
         if (hasDiamond) {
