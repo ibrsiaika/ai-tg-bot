@@ -277,6 +277,33 @@ class BehaviorManager {
             });
         }
 
+        // Food cooking check - cook raw food when available
+        const hasRawFood = await this.systems.inventory.hasItem('raw_beef', 1) ||
+                          await this.systems.inventory.hasItem('raw_porkchop', 1) ||
+                          await this.systems.inventory.hasItem('raw_chicken', 1) ||
+                          await this.systems.inventory.hasItem('raw_mutton', 1);
+        
+        if (hasRawFood && Math.random() < 0.2) {
+            goals.push({
+                name: 'cook_food',
+                type: 'crafting',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 5,
+                action: async () => await this.systems.crafting.cookFood()
+            });
+        }
+
+        // Death recovery - high priority if we died recently
+        if (this.systems.exploration.lastDeathPosition && Math.random() < 0.5) {
+            goals.push({
+                name: 'recover_death_items',
+                type: 'recovery',
+                priority: this.priorities.HIGH,
+                expectedReward: 9,
+                action: async () => await this.systems.exploration.recoverDeathItems()
+            });
+        }
+
         // Bed crafting check - craft bed if we don't have one
         const hasBed = await this.systems.inventory.findItem('bed');
         const hasWool = await this.systems.inventory.hasItem('wool', 3);

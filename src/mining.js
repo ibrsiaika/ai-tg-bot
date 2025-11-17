@@ -246,9 +246,21 @@ class MiningSystem {
 
         // Mine the entire vein
         const veinBlocks = this.findOreVein(oreBlock);
+        const veinCenter = oreBlock.position.clone(); // For item collection
         
         for (const block of veinBlocks) {
             try {
+                // Check inventory before mining each block
+                if (this.inventory.isInventoryFull()) {
+                    console.log('Inventory full during vein mining, collecting drops first');
+                    await this.collectVeinDrops(veinCenter);
+                    
+                    // If still full, manage inventory
+                    if (this.inventory.isInventoryFull()) {
+                        await this.inventory.tossJunk();
+                    }
+                }
+
                 // Add timeout handling for pathfinder
                 try {
                     await this.bot.pathfinder.goto(new goals.GoalBlock(block.position.x, block.position.y, block.position.z));
@@ -269,6 +281,68 @@ class MiningSystem {
             } catch (error) {
                 console.error('Error mining vein block:', error.message);
             }
+        }
+        
+        // Collect all drops from vein after mining
+        await this.collectVeinDrops(veinCenter);
+        console.log(`Completed mining ${oreName} vein and collected drops`);
+    }
+
+    async collectVeinDrops(position) {
+        console.log('Collecting ore vein drops');
+        
+        await this.sleep(1000);
+        
+        try {
+            // Find all nearby items
+            const droppedItems = Object.values(this.bot.entities).filter(entity =>
+                entity.type === 'object' &&
+                entity.objectType === 'Item' &&
+                entity.position.distanceTo(position) < 10
+            );
+
+            if (droppedItems.length === 0) {
+                return;
+            }
+
+            console.log(`Found ${droppedItems.length} dropped items from vein`);
+
+            if (this.bot.collectBlock) {
+                for (const item of droppedItems) {
+                    try {
+                        if (this.inventory.isInventoryFull()) {
+                            console.log('Inventory full, stopping collection');
+                            break;
+                        }
+                        
+                        await this.bot.collectBlock.collect(item);
+                        await this.sleep(100);
+                    } catch (collectError) {
+                        // Continue to next item
+                    }
+                }
+            } else {
+                // Fallback: navigate to items
+                for (const item of droppedItems) {
+                    if (this.inventory.isInventoryFull()) {
+                        break;
+                    }
+                    
+                    try {
+                        await this.bot.pathfinder.goto(new goals.GoalNear(
+                            Math.floor(item.position.x),
+                            Math.floor(item.position.y),
+                            Math.floor(item.position.z),
+                            1
+                        ));
+                        await this.sleep(300);
+                    } catch (error) {
+                        // Continue to next item
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error collecting vein drops:', error.message);
         }
     }
 

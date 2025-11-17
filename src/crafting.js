@@ -391,6 +391,109 @@ class CraftingSystem {
         
         return smelted;
     }
+
+    async cookFood() {
+        console.log('Checking for raw food to cook');
+        
+        const furnace = this.bot.findBlock({
+            matching: block => block.name === 'furnace' || block.name === 'smoker',
+            maxDistance: 32
+        });
+
+        if (!furnace) {
+            console.log('No furnace/smoker nearby for cooking');
+            return false;
+        }
+
+        const rawFoods = [
+            { raw: 'raw_beef', cooked: 'cooked_beef' },
+            { raw: 'raw_porkchop', cooked: 'cooked_porkchop' },
+            { raw: 'raw_chicken', cooked: 'cooked_chicken' },
+            { raw: 'raw_mutton', cooked: 'cooked_mutton' },
+            { raw: 'raw_rabbit', cooked: 'cooked_rabbit' },
+            { raw: 'raw_cod', cooked: 'cooked_cod' },
+            { raw: 'raw_salmon', cooked: 'cooked_salmon' },
+            { raw: 'potato', cooked: 'baked_potato' },
+            { raw: 'kelp', cooked: 'dried_kelp' }
+        ];
+
+        const fuel = await this.inventory.findItem('coal') || 
+                     await this.inventory.findItem('charcoal') ||
+                     await this.inventory.findItem('coal_block');
+
+        if (!fuel) {
+            console.log('No fuel for cooking');
+            return false;
+        }
+
+        let cooked = false;
+        for (const food of rawFoods) {
+            const hasFood = await this.inventory.hasItem(food.raw, 1);
+            if (hasFood) {
+                try {
+                    await this.bot.pathfinder.goto(new goals.GoalBlock(
+                        furnace.position.x, 
+                        furnace.position.y, 
+                        furnace.position.z
+                    ));
+                    
+                    const furnaceWindow = await this.bot.openFurnace(furnace);
+                    
+                    // Put raw food in input slot
+                    const foodItem = await this.inventory.findItem(food.raw);
+                    if (foodItem) {
+                        await furnaceWindow.putInput(foodItem.type, null, Math.min(foodItem.count, 8));
+                    }
+                    
+                    // Put fuel in fuel slot
+                    const fuelItem = await this.inventory.findItem('coal') || 
+                                    await this.inventory.findItem('charcoal');
+                    if (fuelItem) {
+                        await furnaceWindow.putFuel(fuelItem.type, null, 2); // Less fuel for cooking
+                    }
+                    
+                    console.log(`Cooking ${food.raw} into ${food.cooked}`);
+                    
+                    // Wait for cooking to complete
+                    await this.sleep(8000); // 8 seconds
+                    
+                    // Take output
+                    await furnaceWindow.takeOutput();
+                    furnaceWindow.close();
+                    
+                    cooked = true;
+                    console.log(`Cooked ${food.raw} into ${food.cooked}`);
+                } catch (error) {
+                    console.error(`Error cooking ${food.raw}:`, error.message);
+                }
+            }
+        }
+        
+        return cooked;
+    }
+                    if (fuelItem) {
+                        await furnaceWindow.putFuel(fuelItem.type, null, Math.min(fuelItem.count, 8));
+                    }
+                    
+                    console.log(`Smelting ${ore.raw} into ${ore.result}`);
+                    
+                    // Wait for smelting to complete
+                    await this.sleep(10000); // 10 seconds
+                    
+                    // Take output
+                    await furnaceWindow.takeOutput();
+                    furnaceWindow.close();
+                    
+                    smelted = true;
+                    await this.notifier.send(`Smelted ${ore.raw} into ${ore.result}`);
+                } catch (error) {
+                    console.error(`Error smelting ${ore.raw}:`, error.message);
+                }
+            }
+        }
+        
+        return smelted;
+    }
     
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));

@@ -18,11 +18,113 @@ class ExplorationSystem {
         this.discoveredBiomes = new Set();
         this.waypoints = [];
         this.homeBase = null;
+        this.lastDeathPosition = null;
+        this.deathCount = 0;
         
         // Enhanced resource tracking
         this.knownTreeLocations = [];
         this.knownOreLocations = new Map();
         this.exploredChunks = new Set();
+        
+        // Setup death tracking
+        this.setupDeathTracking();
+    }
+
+    setupDeathTracking() {
+        this.bot.on('death', () => {
+            this.lastDeathPosition = this.bot.entity.position.clone();
+            this.deathCount++;
+            console.log(`☠ Death #${this.deathCount} at ${this.lastDeathPosition.toString()}`);
+            this.addWaypoint(`Death #${this.deathCount}`, this.lastDeathPosition);
+            
+            // Save to memory
+            this.saveDeathLocation(this.lastDeathPosition);
+        });
+    }
+
+    saveDeathLocation(position) {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const memoryFile = path.join(__dirname, '../.bot-memory.json');
+            
+            let memory = {};
+            if (fs.existsSync(memoryFile)) {
+                memory = JSON.parse(fs.readFileSync(memoryFile, 'utf8'));
+            }
+            
+            memory.lastDeath = {
+                x: position.x,
+                y: position.y,
+                z: position.z,
+                timestamp: Date.now(),
+                count: this.deathCount
+            };
+            
+            fs.writeFileSync(memoryFile, JSON.stringify(memory, null, 2));
+            console.log('Death location saved to memory');
+        } catch (error) {
+            console.error('Error saving death location:', error.message);
+        }
+    }
+
+    async recoverDeathItems() {
+        if (!this.lastDeathPosition) {
+            console.log('No death location recorded');
+            return false;
+        }
+
+        console.log(`Attempting to recover items from death at ${this.lastDeathPosition.toString()}`);
+        await this.notifier.send(`Recovering items from death location`);
+
+        try {
+            // Navigate to death location
+            await this.bot.pathfinder.goto(new goals.GoalNear(
+                this.lastDeathPosition.x,
+                this.lastDeathPosition.y,
+                this.lastDeathPosition.z,
+                5
+            ));
+
+            // Wait and collect any items
+            await this.sleep(2000);
+            
+            // Items should auto-pickup, but let's check for dropped items nearby
+            const droppedItems = Object.values(this.bot.entities).filter(entity =>
+                entity.type === 'object' &&
+                entity.objectType === 'Item' &&
+                entity.position.distanceTo(this.lastDeathPosition) < 10
+            );
+
+            if (droppedItems.length > 0) {
+                console.log(`Found ${droppedItems.length} items at death location`);
+                
+                if (this.bot.collectBlock) {
+                    for (const item of droppedItems) {
+                        try {
+                            await this.bot.collectBlock.collect(item);
+                            await this.sleep(200);
+                        } catch (e) {
+                            // Continue
+                        }
+                    }
+                }
+            }
+
+            console.log('Death recovery completed');
+            await this.notifier.send('Death recovery completed');
+            
+            // Clear death position after successful recovery
+            this.lastDeathPosition = null;
+            return true;
+        } catch (error) {
+            console.error('Error during death recovery:', error.message);
+            return false;
+        }
+    }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     setHomeBase(position) {

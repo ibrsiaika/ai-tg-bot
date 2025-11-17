@@ -1,6 +1,7 @@
 require('dotenv').config();
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const collectBlock = require('mineflayer-collectblock').plugin;
 const Vec3 = require('vec3');
 
 // Import our systems
@@ -143,6 +144,10 @@ class AutonomousMinecraftBot {
         const mcData = require('minecraft-data')(this.bot.version);
         const defaultMove = new Movements(this.bot, mcData);
         this.bot.pathfinder.setMovements(defaultMove);
+
+        // Load collectblock plugin for automatic item collection
+        this.bot.loadPlugin(collectBlock);
+        console.log('✓ Collectblock plugin loaded');
 
         // Initialize Telegram notifier
         this.systems.notifier = new TelegramNotifier(
