@@ -4,6 +4,7 @@ class BehaviorManager {
         this.systems = systems;
         this.notifier = notifier;
         this.safety = safetyMonitor;
+        this.intelligence = systems.intelligence; // Link to intelligence system
         
         this.currentGoal = null;
         this.isActive = false;
@@ -31,6 +32,10 @@ class BehaviorManager {
             buildingPreference: 0.2,
             farmingPreference: 0.15
         };
+        
+        // Decision tracking
+        this.lastDecisionTime = Date.now();
+        this.decisionCount = 0;
     }
 
     async start() {
@@ -81,7 +86,12 @@ class BehaviorManager {
     }
 
     async chooseNextGoal() {
-        console.log('Choosing next autonomous goal (Enhanced AI)');
+        console.log('Choosing next autonomous goal (Enhanced AI with Intelligence System)');
+        
+        // Update intelligence system with current inventory
+        if (this.intelligence) {
+            this.intelligence.updateResourceStatus(this.systems.inventory);
+        }
         
         const goals = [];
         const timeOfDay = this.bot.time.timeOfDay;
@@ -91,7 +101,9 @@ class BehaviorManager {
         if (this.safety.needsFood()) {
             goals.push({
                 name: 'find_food',
+                type: 'survival',
                 priority: this.priorities.CRITICAL,
+                expectedReward: 10,
                 action: async () => await this.findAndEatFood()
             });
         }
@@ -99,7 +111,9 @@ class BehaviorManager {
         if (this.safety.isLowHealth()) {
             goals.push({
                 name: 'heal',
+                type: 'survival',
                 priority: this.priorities.CRITICAL,
+                expectedReward: 10,
                 action: async () => await this.systems.combat.heal()
             });
         }
@@ -110,9 +124,26 @@ class BehaviorManager {
         if (!hasBasicTools.hasPickaxe || !hasBasicTools.hasAxe) {
             goals.push({
                 name: 'craft_basic_tools',
+                type: 'crafting',
                 priority: this.priorities.HIGH,
+                expectedReward: 8,
                 action: async () => await this.craftBasicTools()
             });
+        }
+
+        // Use intelligence system to determine resource priorities
+        if (this.intelligence) {
+            const mostNeeded = this.intelligence.getMostNeededResource();
+            
+            if (mostNeeded.priority > 0.5) {
+                goals.push({
+                    name: `gather_${mostNeeded.resource}`,
+                    type: 'gathering',
+                    priority: this.priorities.HIGH,
+                    expectedReward: mostNeeded.priority * 10,
+                    action: async () => await this.gatherSpecificResource(mostNeeded.resource)
+                });
+            }
         }
 
         // Adaptive behavior based on time of day
@@ -121,7 +152,9 @@ class BehaviorManager {
             if (Math.random() < this.adaptiveBehavior.miningPreference * 1.5) {
                 goals.push({
                     name: 'night_mining',
+                    type: 'mining',
                     priority: this.priorities.MEDIUM,
+                    expectedReward: 7,
                     action: async () => await this.mineResources()
                 });
             }
@@ -129,7 +162,9 @@ class BehaviorManager {
             if (Math.random() < 0.3) {
                 goals.push({
                     name: 'craft_items',
+                    type: 'crafting',
                     priority: this.priorities.MEDIUM,
+                    expectedReward: 5,
                     action: async () => await this.craftingSession()
                 });
             }
@@ -138,7 +173,9 @@ class BehaviorManager {
             if (Math.random() < this.adaptiveBehavior.explorationPreference) {
                 goals.push({
                     name: 'explore_world',
+                    type: 'explore',
                     priority: this.priorities.MEDIUM,
+                    expectedReward: 6,
                     action: async () => await this.intelligentExploration()
                 });
             }
@@ -146,7 +183,9 @@ class BehaviorManager {
             if (Math.random() < 0.5) {
                 goals.push({
                     name: 'gather_resources',
+                    type: 'gathering',
                     priority: this.priorities.MEDIUM,
+                    expectedReward: 6,
                     action: async () => await this.gatherResourcesIntelligently()
                 });
             }
@@ -154,7 +193,9 @@ class BehaviorManager {
             if (Math.random() < this.adaptiveBehavior.buildingPreference) {
                 goals.push({
                     name: 'build_structures',
+                    type: 'building',
                     priority: this.priorities.MEDIUM,
+                    expectedReward: 5,
                     action: async () => await this.buildIntelligently()
                 });
             }
@@ -164,7 +205,9 @@ class BehaviorManager {
         if (Math.random() < this.adaptiveBehavior.miningPreference) {
             goals.push({
                 name: 'mine_resources',
+                type: 'mining',
                 priority: this.priorities.MEDIUM,
+                expectedReward: 6,
                 action: async () => await this.mineResources()
             });
         }
@@ -172,7 +215,9 @@ class BehaviorManager {
         if (Math.random() < this.adaptiveBehavior.farmingPreference) {
             goals.push({
                 name: 'auto_farm',
+                type: 'farming',
                 priority: this.priorities.MEDIUM,
+                expectedReward: 5,
                 action: async () => await this.systems.farming.autoFarm()
             });
         }
@@ -181,7 +226,9 @@ class BehaviorManager {
         if (Math.random() < 0.2) {
             goals.push({
                 name: 'upgrade_tools',
+                type: 'crafting',
                 priority: this.priorities.MEDIUM,
+                expectedReward: 8,
                 action: async () => await this.upgradeEquipment()
             });
         }
@@ -190,7 +237,10 @@ class BehaviorManager {
         if (Math.random() < 0.1 && this.systems.advancedBase) {
             goals.push({
                 name: 'advanced_base',
+                type: 'building',
                 priority: this.priorities.LOW,
+                expectedReward: 10,
+                targetPosition: this.bot.entity.position,
                 action: async () => await this.systems.advancedBase.buildAdvancedBase(this.bot.entity.position)
             });
         }
@@ -199,28 +249,58 @@ class BehaviorManager {
         if (this.systems.inventory.isInventoryFull()) {
             goals.push({
                 name: 'manage_inventory',
+                type: 'inventory',
                 priority: this.priorities.HIGH,
+                expectedReward: 4,
                 action: async () => await this.manageInventory()
             });
         }
 
-        // Sort by priority and return highest
-        goals.sort((a, b) => b.priority - a.priority);
+        // Use intelligence system to optimize decision if available
+        let selectedGoal;
+        if (this.intelligence && goals.length > 1) {
+            selectedGoal = this.intelligence.optimizeDecision(goals);
+            console.log(`Intelligence system selected: ${selectedGoal.name} (score: ${selectedGoal.score.toFixed(2)})`);
+        } else {
+            // Sort by priority and return highest
+            goals.sort((a, b) => b.priority - a.priority);
+            selectedGoal = goals[0];
+        }
 
-        return goals[0] || {
+        this.decisionCount++;
+        
+        // Periodic intelligence report (every 50 decisions)
+        if (this.intelligence && this.decisionCount % 50 === 0) {
+            await this.intelligence.generateReport();
+        }
+
+        return selectedGoal || {
             name: 'idle_explore',
+            type: 'explore',
             priority: this.priorities.LOW,
+            expectedReward: 3,
             action: async () => await this.explore()
         };
     }
 
     async executeGoal(goal) {
+        const startTime = Date.now();
+        let success = false;
+        
         try {
             console.log(`Starting: ${goal.name}`);
             await goal.action();
             console.log(`Completed: ${goal.name}`);
+            success = true;
         } catch (error) {
             console.error(`Error executing ${goal.name}:`, error.message);
+        }
+        
+        // Record action in intelligence system
+        if (this.intelligence) {
+            const duration = Date.now() - startTime;
+            const reward = success ? (goal.expectedReward || 5) : 0;
+            this.intelligence.recordAction(goal.name, success, reward);
         }
     }
 
@@ -369,6 +449,35 @@ class BehaviorManager {
         } else {
             // Look for valuable ores
             await this.systems.gathering.searchForValuableOres();
+        }
+    }
+
+    async gatherSpecificResource(resourceType) {
+        console.log(`Gathering specific resource: ${resourceType}`);
+        
+        switch (resourceType) {
+            case 'wood':
+                await this.systems.gathering.collectWood(64);
+                this.performanceMetrics.resourcesGathered += 64;
+                break;
+            case 'stone':
+                await this.systems.gathering.mineStone(128);
+                this.performanceMetrics.resourcesGathered += 128;
+                break;
+            case 'iron':
+                await this.systems.gathering.mineOre('iron', 64);
+                break;
+            case 'diamond':
+                await this.systems.gathering.mineOre('diamond', 64);
+                break;
+            case 'coal':
+                await this.systems.gathering.collectCoal(64);
+                break;
+            case 'food':
+                await this.systems.farming.autoFarm();
+                break;
+            default:
+                await this.gatherResourcesIntelligently();
         }
     }
 

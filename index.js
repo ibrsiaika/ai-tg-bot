@@ -16,6 +16,7 @@ const FarmingSystem = require('./src/farming');
 const BehaviorManager = require('./src/behavior');
 const ExplorationSystem = require('./src/exploration');
 const AdvancedBaseSystem = require('./src/advancedBase');
+const IntelligenceSystem = require('./src/intelligence');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -124,6 +125,12 @@ class AutonomousMinecraftBot {
             this.config.telegramChatId
         );
 
+        // Initialize intelligence system (NEW - The Brain)
+        this.systems.intelligence = new IntelligenceSystem(
+            this.bot,
+            this.systems.notifier
+        );
+
         // Initialize safety monitor
         this.systems.safety = new SafetyMonitor(
             this.bot,
@@ -203,6 +210,9 @@ class AutonomousMinecraftBot {
         // Set home base for exploration
         this.systems.exploration.setHomeBase(this.bot.entity.position);
 
+        // Connect gathering system to exploration system
+        this.systems.gathering.setExplorationSystem(this.systems.exploration);
+
         // Initialize advanced base system (NEW)
         this.systems.advancedBase = new AdvancedBaseSystem(
             this.bot,
@@ -220,8 +230,13 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
-        console.log('✓ All systems initialized (12 systems online)');
-        await this.systems.notifier.send('Enhanced AI systems online. Beginning intelligent autonomous operations.');
+        console.log('✓ All systems initialized (13 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
+        
+        // Set initial long-term goals
+        this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
+        this.systems.intelligence.addLongTermGoal('Build starter base', 0.8, { shelter: true });
+        this.systems.intelligence.addLongTermGoal('Obtain diamond tools', 0.7, { diamond: 3 });
     }
 }
 
