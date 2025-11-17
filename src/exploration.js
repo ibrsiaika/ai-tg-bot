@@ -1,0 +1,276 @@
+const { goals } = require('mineflayer-pathfinder');
+const Vec3 = require('vec3');
+
+class ExplorationSystem {
+    constructor(bot, pathfinder, notifier, inventoryManager) {
+        this.bot = bot;
+        this.pathfinder = pathfinder;
+        this.notifier = notifier;
+        this.inventory = inventoryManager;
+        this.visitedLocations = new Set();
+        this.discoveredStructures = [];
+        this.discoveredBiomes = new Set();
+        this.waypoints = [];
+        this.homeBase = null;
+    }
+
+    setHomeBase(position) {
+        this.homeBase = position.clone();
+        this.addWaypoint('Home Base', position);
+        console.log(`Home base established at ${position.toString()}`);
+    }
+
+    addWaypoint(name, position) {
+        this.waypoints.push({
+            name,
+            position: position.clone(),
+            timestamp: Date.now()
+        });
+        console.log(`Waypoint added: ${name} at ${position.toString()}`);
+    }
+
+    hasVisited(position, radius = 16) {
+        const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
+        return this.visitedLocations.has(key);
+    }
+
+    markVisited(position, radius = 16) {
+        const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
+        this.visitedLocations.add(key);
+    }
+
+    async smartExplore(distance = 200, duration = 60000) {
+        console.log(`Starting smart exploration: ${distance} blocks for ${duration}ms`);
+        
+        const startTime = Date.now();
+        const startPos = this.bot.entity.position.clone();
+        let discoveries = 0;
+
+        while (Date.now() - startTime < duration) {
+            // Choose unexplored direction
+            const targetPos = this.findUnexploredDirection(startPos, distance);
+            
+            try {
+                await this.bot.pathfinder.goto(new goals.GoalNear(
+                    targetPos.x,
+                    targetPos.y,
+                    targetPos.z,
+                    10
+                ));
+
+                this.markVisited(this.bot.entity.position);
+
+                // Scan for interesting things
+                discoveries += await this.scanSurroundings();
+
+                await this.sleep(1000);
+            } catch (error) {
+                console.log('Exploration interrupted, trying new direction');
+            }
+        }
+
+        await this.notifier.send(`Exploration complete. Discovered ${discoveries} items of interest.`);
+        console.log(`Exploration finished. Made ${discoveries} discoveries.`);
+        
+        return discoveries;
+    }
+
+    findUnexploredDirection(centerPos, maxDistance) {
+        // Try to find a direction we haven't explored yet
+        for (let attempt = 0; attempt < 10; attempt++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = maxDistance * (0.5 + Math.random() * 0.5);
+            
+            const targetX = centerPos.x + Math.cos(angle) * distance;
+            const targetZ = centerPos.z + Math.sin(angle) * distance;
+            const targetPos = new Vec3(targetX, centerPos.y, targetZ);
+
+            if (!this.hasVisited(targetPos)) {
+                return targetPos;
+            }
+        }
+
+        // If all nearby areas explored, go further
+        const angle = Math.random() * Math.PI * 2;
+        return new Vec3(
+            centerPos.x + Math.cos(angle) * maxDistance * 2,
+            centerPos.y,
+            centerPos.z + Math.sin(angle) * maxDistance * 2
+        );
+    }
+
+    async scanSurroundings() {
+        let discoveries = 0;
+
+        // Look for villages
+        const village = await this.detectStructure('village');
+        if (village) {
+            discoveries++;
+            await this.notifier.send(`Village discovered at ${this.bot.entity.position.toString()}`);
+            this.discoveredStructures.push({ type: 'village', position: village });
+            this.addWaypoint('Village', village);
+        }
+
+        // Look for temples
+        const temple = await this.detectStructure('temple');
+        if (temple) {
+            discoveries++;
+            await this.notifier.send(`Temple found at ${this.bot.entity.position.toString()}`);
+            this.discoveredStructures.push({ type: 'temple', position: temple });
+            this.addWaypoint('Temple', temple);
+        }
+
+        // Detect biome
+        const biome = await this.detectBiome();
+        if (biome && !this.discoveredBiomes.has(biome)) {
+            discoveries++;
+            this.discoveredBiomes.add(biome);
+            await this.notifier.send(`New biome discovered: ${biome}`);
+        }
+
+        // Look for valuable resources
+        const ores = await this.scanForOres();
+        if (ores > 0) {
+            discoveries += ores;
+        }
+
+        return discoveries;
+    }
+
+    async detectStructure(structureType) {
+        // Look for structure indicators
+        const searchRadius = 50;
+        const pos = this.bot.entity.position;
+
+        if (structureType === 'village') {
+            // Look for village buildings (wood planks, logs, etc.)
+            const villageBlocks = ['oak_planks', 'cobblestone', 'oak_log', 'hay_block'];
+            
+            for (const blockName of villageBlocks) {
+                const block = this.bot.findBlock({
+                    matching: b => b.name === blockName,
+                    maxDistance: searchRadius
+                });
+                
+                if (block) {
+                    return block.position;
+                }
+            }
+        } else if (structureType === 'temple') {
+            // Look for temple blocks
+            const templeBlocks = ['sandstone', 'chiseled_sandstone', 'mossy_cobblestone'];
+            
+            for (const blockName of templeBlocks) {
+                const block = this.bot.findBlock({
+                    matching: b => b.name === blockName,
+                    maxDistance: searchRadius
+                });
+                
+                if (block) {
+                    return block.position;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    async detectBiome() {
+        const pos = this.bot.entity.position;
+        
+        // Simple biome detection based on blocks around
+        const nearbyBlocks = [];
+        const radius = 10;
+        
+        for (let x = -radius; x <= radius; x += 5) {
+            for (let z = -radius; z <= radius; z += 5) {
+                const block = this.bot.blockAt(pos.offset(x, -1, z));
+                if (block) {
+                    nearbyBlocks.push(block.name);
+                }
+            }
+        }
+
+        // Analyze blocks to determine biome
+        if (nearbyBlocks.some(b => b.includes('sand'))) {
+            return 'desert';
+        } else if (nearbyBlocks.some(b => b.includes('snow') || b.includes('ice'))) {
+            return 'snowy';
+        } else if (nearbyBlocks.some(b => b === 'grass_block')) {
+            return 'plains/forest';
+        } else if (nearbyBlocks.some(b => b === 'stone')) {
+            return 'mountains';
+        }
+
+        return 'unknown';
+    }
+
+    async scanForOres() {
+        const ores = ['diamond_ore', 'iron_ore', 'gold_ore', 'emerald_ore', 'lapis_ore'];
+        let foundCount = 0;
+
+        for (const ore of ores) {
+            const found = this.bot.findBlock({
+                matching: b => b.name.includes(ore),
+                maxDistance: 32
+            });
+
+            if (found) {
+                foundCount++;
+                const oreName = ore.replace('_ore', '');
+                await this.notifier.send(`${oreName} ore vein spotted nearby!`);
+            }
+        }
+
+        return foundCount;
+    }
+
+    async returnToWaypoint(waypointName) {
+        const waypoint = this.waypoints.find(w => w.name === waypointName);
+        
+        if (!waypoint) {
+            console.log(`Waypoint ${waypointName} not found`);
+            return false;
+        }
+
+        console.log(`Returning to waypoint: ${waypointName}`);
+        
+        try {
+            await this.bot.pathfinder.goto(new goals.GoalBlock(
+                waypoint.position.x,
+                waypoint.position.y,
+                waypoint.position.z
+            ));
+            
+            console.log(`Arrived at ${waypointName}`);
+            return true;
+        } catch (error) {
+            console.error(`Error returning to ${waypointName}:`, error.message);
+            return false;
+        }
+    }
+
+    async returnHome() {
+        if (!this.homeBase) {
+            console.log('No home base set');
+            return false;
+        }
+
+        return await this.returnToWaypoint('Home Base');
+    }
+
+    getExplorationStats() {
+        return {
+            visitedLocations: this.visitedLocations.size,
+            discoveredStructures: this.discoveredStructures.length,
+            discoveredBiomes: Array.from(this.discoveredBiomes),
+            waypoints: this.waypoints.length
+        };
+    }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+module.exports = ExplorationSystem;
