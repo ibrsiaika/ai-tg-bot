@@ -471,29 +471,6 @@ class CraftingSystem {
         
         return cooked;
     }
-                    if (fuelItem) {
-                        await furnaceWindow.putFuel(fuelItem.type, null, Math.min(fuelItem.count, 8));
-                    }
-                    
-                    console.log(`Smelting ${ore.raw} into ${ore.result}`);
-                    
-                    // Wait for smelting to complete
-                    await this.sleep(10000); // 10 seconds
-                    
-                    // Take output
-                    await furnaceWindow.takeOutput();
-                    furnaceWindow.close();
-                    
-                    smelted = true;
-                    await this.notifier.send(`Smelted ${ore.raw} into ${ore.result}`);
-                } catch (error) {
-                    console.error(`Error smelting ${ore.raw}:`, error.message);
-                }
-            }
-        }
-        
-        return smelted;
-    }
     
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
