@@ -233,6 +233,20 @@ class BehaviorManager {
             });
         }
 
+        // Tool maintenance check
+        if (this.systems.toolDurability) {
+            const maintenancePriority = this.systems.toolDurability.getMaintenancePriority();
+            if (maintenancePriority > 0.5) {
+                goals.push({
+                    name: 'tool_maintenance',
+                    type: 'maintenance',
+                    priority: this.priorities.HIGH,
+                    expectedReward: maintenancePriority * 10,
+                    action: async () => await this.systems.toolDurability.performMaintenance()
+                });
+            }
+        }
+
         // Advanced base building
         if (Math.random() < 0.1 && this.systems.advancedBase) {
             goals.push({

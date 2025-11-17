@@ -17,6 +17,7 @@ const BehaviorManager = require('./src/behavior');
 const ExplorationSystem = require('./src/exploration');
 const AdvancedBaseSystem = require('./src/advancedBase');
 const IntelligenceSystem = require('./src/intelligence');
+const ToolDurabilityManager = require('./src/toolDurability');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -131,6 +132,14 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
+        // Initialize tool durability manager (NEW)
+        this.systems.toolDurability = new ToolDurabilityManager(
+            this.bot,
+            this.systems.inventory,
+            this.systems.crafting,
+            this.systems.notifier
+        );
+
         // Initialize safety monitor
         this.systems.safety = new SafetyMonitor(
             this.bot,
@@ -230,7 +239,7 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
-        console.log('✓ All systems initialized (13 systems online)');
+        console.log('✓ All systems initialized (14 systems online)');
         await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
         
         // Set initial long-term goals
@@ -264,6 +273,9 @@ console.log(`  Telegram: ${config.telegramToken ? 'Enabled' : 'Disabled'}`);
 console.log('');
 console.log('Features:');
 console.log('  ✓ Enhanced AI with adaptive behavior');
+console.log('  ✓ Advanced intelligence "brain" system');
+console.log('  ✓ Learning from experience');
+console.log('  ✓ Tool durability management');
 console.log('  ✓ Intelligent exploration & mapping');
 console.log('  ✓ Advanced survival base building');
 console.log('  ✓ Day/night cycle adaptation');
@@ -276,6 +288,7 @@ console.log('  ✓ Tool crafting & upgrading');
 console.log('  ✓ Inventory management');
 console.log('  ✓ Telegram notifications');
 console.log('  ✓ Performance tracking');
+console.log('  ✓ Risk assessment');
 console.log('');
 console.log('Starting bot...');
 console.log('═══════════════════════════════════════════════');
