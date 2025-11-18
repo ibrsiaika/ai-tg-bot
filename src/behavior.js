@@ -8,6 +8,7 @@ class BehaviorManager {
         
         // Configuration constants
         this.INTELLIGENCE_REPORT_INTERVAL = 50; // Generate report every N decisions
+        this.MAX_CONSECUTIVE_FAILURES = 2; // Maximum attempts before skipping goal
         
         this.currentGoal = null;
         this.isActive = false;
@@ -18,6 +19,9 @@ class BehaviorManager {
             MEDIUM: 50,
             LOW: 25
         };
+        
+        // Track consecutive failures per goal
+        this.goalFailures = new Map(); // goal_name -> consecutive_failure_count
         
         // Enhanced intelligence tracking
         this.performanceMetrics = {
@@ -424,15 +428,32 @@ class BehaviorManager {
             });
         }
 
+        // Filter out goals that have failed too many times consecutively
+        const availableGoals = goals.filter(goal => {
+            const failures = this.goalFailures.get(goal.name) || 0;
+            if (failures >= this.MAX_CONSECUTIVE_FAILURES) {
+                console.log(`Skipping ${goal.name} - already failed ${failures} times consecutively`);
+                return false;
+            }
+            return true;
+        });
+        
+        // If all goals are blocked, reset failure counts and try again
+        if (availableGoals.length === 0 && goals.length > 0) {
+            console.log('All goals have failed repeatedly. Resetting failure counts...');
+            this.goalFailures.clear();
+            return this.chooseNextGoal(); // Recursive call with reset counts
+        }
+        
         // Use intelligence system to optimize decision if available
         let selectedGoal;
-        if (this.intelligence && goals.length > 1) {
-            selectedGoal = this.intelligence.optimizeDecision(goals);
+        if (this.intelligence && availableGoals.length > 1) {
+            selectedGoal = this.intelligence.optimizeDecision(availableGoals);
             console.log(`Intelligence system selected: ${selectedGoal.name} (score: ${selectedGoal.score.toFixed(2)})`);
         } else {
             // Sort by priority and return highest
-            goals.sort((a, b) => b.priority - a.priority);
-            selectedGoal = goals[0];
+            availableGoals.sort((a, b) => b.priority - a.priority);
+            selectedGoal = availableGoals[0];
         }
 
         this.decisionCount++;
@@ -454,12 +475,15 @@ class BehaviorManager {
     async executeGoal(goal) {
         const startTime = Date.now();
         let success = false;
+        let actionResult = false;
         
         try {
             console.log(`Starting: ${goal.name}`);
-            await goal.action();
+            actionResult = await goal.action();
             console.log(`Completed: ${goal.name}`);
-            success = true;
+            
+            // Consider it successful if action returns true or undefined (no explicit failure)
+            success = (actionResult !== false);
         } catch (error) {
             // Suppress PartialReadError - non-fatal protocol errors
             if (error.name === 'PartialReadError' || 
@@ -470,6 +494,17 @@ class BehaviorManager {
             } else {
                 console.error(`Error executing ${goal.name}:`, error.message);
             }
+        }
+        
+        // Track consecutive failures
+        if (success) {
+            // Reset failure count on success
+            this.goalFailures.delete(goal.name);
+        } else {
+            // Increment failure count
+            const currentFailures = this.goalFailures.get(goal.name) || 0;
+            this.goalFailures.set(goal.name, currentFailures + 1);
+            console.log(`Goal ${goal.name} failed. Consecutive failures: ${currentFailures + 1}`);
         }
         
         // Record action in intelligence system
@@ -636,29 +671,27 @@ class BehaviorManager {
     async gatherSpecificResource(resourceType) {
         console.log(`Gathering specific resource: ${resourceType}`);
         
+        let result;
         switch (resourceType) {
             case 'wood':
-                await this.systems.gathering.collectWood(64);
-                this.performanceMetrics.resourcesGathered += 64;
-                break;
+                result = await this.systems.gathering.collectWood(64);
+                if (result) this.performanceMetrics.resourcesGathered += 64;
+                return result;
             case 'stone':
-                await this.systems.gathering.mineStone(128);
-                this.performanceMetrics.resourcesGathered += 128;
-                break;
+                result = await this.systems.gathering.mineStone(128);
+                if (result) this.performanceMetrics.resourcesGathered += 128;
+                return result;
             case 'iron':
-                await this.systems.gathering.mineOre('iron', 64);
-                break;
+                return await this.systems.gathering.mineOre('iron', 64);
             case 'diamond':
-                await this.systems.gathering.mineOre('diamond', 64);
-                break;
+                return await this.systems.gathering.mineOre('diamond', 64);
             case 'coal':
-                await this.systems.gathering.collectCoal(64);
-                break;
+                return await this.systems.gathering.collectCoal(64);
             case 'food':
-                await this.systems.farming.autoFarm();
-                break;
+                return await this.systems.farming.autoFarm();
             default:
                 await this.gatherResourcesIntelligently();
+                return true; // Default case assumed successful
         }
     }
 
