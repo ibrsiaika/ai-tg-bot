@@ -32,6 +32,8 @@ const AdvancedFarmSystem = require('./src/advancedFarming');
 const SortingSystem = require('./src/sorting');
 const PerformanceAnalytics = require('./src/analytics');
 const MultiGoalPlanner = require('./src/questPlanner');
+const GeminiAI = require('./src/geminiAI');
+const ItemProtection = require('./src/itemProtection');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -202,6 +204,12 @@ class AutonomousMinecraftBot {
             this.config.telegramChatId
         );
 
+        // Initialize Gemini AI (NEW - Phase 1)
+        this.systems.geminiAI = new GeminiAI(
+            this.config.geminiApiKey,
+            this.systems.notifier
+        );
+
         // Initialize advanced pathfinding (PHASE 2)
         this.systems.pathfinding = new AdvancedPathfinding(
             this.bot,
@@ -244,6 +252,13 @@ class AutonomousMinecraftBot {
 
         // Initialize crafting system
         this.systems.crafting = new CraftingSystem(
+            this.bot,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
+        // Initialize item protection system (NEW - Phase 3)
+        this.systems.itemProtection = new ItemProtection(
             this.bot,
             this.systems.notifier,
             this.systems.inventory
@@ -408,8 +423,8 @@ class AutonomousMinecraftBot {
             this.systems
         );
 
-        console.log('✓ All systems initialized (25 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, and Quest Planning. Beginning autonomous operations.');
+        console.log('✓ All systems initialized (27 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features + Gemini AI Integration + Item Protection. Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, Quest Planning, and AI-powered decisions. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
@@ -435,6 +450,7 @@ const config = {
     version: process.env.MINECRAFT_VERSION || false,
     telegramToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
+    geminiApiKey: process.env.GEMINI_API_KEY,
     minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || CONSTANTS.SAFETY.DEFAULT_MIN_HEALTH_PERCENT,
     minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL
 };
