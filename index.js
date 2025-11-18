@@ -23,6 +23,15 @@ const FishingSystem = require('./src/fishing');
 const BackupSystem = require('./src/backup');
 const Utils = require('./src/utils');
 const CONSTANTS = require('./src/constants');
+const AdvancedPathfinding = require('./src/pathfinding');
+const MobThreatAI = require('./src/mobThreatAI');
+const ResourcePredictor = require('./src/resourcePredictor');
+const NetherNavigation = require('./src/netherNavigation');
+const EnchantingSystem = require('./src/enchanting');
+const AdvancedFarmSystem = require('./src/advancedFarming');
+const SortingSystem = require('./src/sorting');
+const PerformanceAnalytics = require('./src/analytics');
+const MultiGoalPlanner = require('./src/questPlanner');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -193,6 +202,12 @@ class AutonomousMinecraftBot {
             this.config.telegramChatId
         );
 
+        // Initialize advanced pathfinding (PHASE 2)
+        this.systems.pathfinding = new AdvancedPathfinding(
+            this.bot,
+            this.systems.notifier
+        );
+
         // Initialize intelligence system (NEW - The Brain)
         this.systems.intelligence = new IntelligenceSystem(
             this.bot,
@@ -210,6 +225,13 @@ class AutonomousMinecraftBot {
         this.systems.inventory = new InventoryManager(
             this.bot,
             this.systems.notifier
+        );
+
+        // Initialize resource predictor (PHASE 2)
+        this.systems.resourcePredictor = new ResourcePredictor(
+            this.bot,
+            this.systems.notifier,
+            this.systems.inventory
         );
 
         // Initialize resource gathering
@@ -247,6 +269,15 @@ class AutonomousMinecraftBot {
         // Set home position for mining
         this.systems.mining.setHome(this.bot.entity.position);
 
+        // Initialize Nether navigation (PHASE 2)
+        this.systems.netherNavigation = new NetherNavigation(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.safety
+        );
+
         // Initialize building system
         this.systems.building = new BuildingSystem(
             this.bot,
@@ -264,8 +295,18 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
+        // Initialize mob threat AI (PHASE 2)
+        this.systems.mobThreatAI = new MobThreatAI(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier
+        );
+
         // Start combat monitoring
         this.systems.combat.startCombatMonitoring();
+        
+        // Link Mob Threat AI to combat system
+        this.systems.combat.setMobThreatAI(this.systems.mobThreatAI);
 
         // Initialize farming system
         this.systems.farming = new FarmingSystem(
@@ -296,6 +337,9 @@ class AutonomousMinecraftBot {
 
         // Connect gathering system to exploration system
         this.systems.gathering.setExplorationSystem(this.systems.exploration);
+        
+        // Connect resource predictor to gathering system
+        this.systems.gathering.setResourcePredictor(this.systems.resourcePredictor);
 
         // Initialize advanced base system (NEW)
         this.systems.advancedBase = new AdvancedBaseSystem(
@@ -321,13 +365,59 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        console.log('✓ All systems initialized (16 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
+        // Initialize enchanting system (PHASE 2)
+        this.systems.enchanting = new EnchantingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.crafting
+        );
+
+        // Initialize advanced farming (PHASE 3)
+        this.systems.advancedFarming = new AdvancedFarmSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.building
+        );
+
+        // Initialize sorting system (PHASE 3)
+        this.systems.sorting = new SortingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
+        // Initialize performance analytics (PHASE 4)
+        this.systems.analytics = new PerformanceAnalytics(
+            this.bot,
+            this.systems.notifier,
+            this.systems
+        );
+
+        // Initialize multi-goal planner (PHASE 4)
+        this.systems.questPlanner = new MultiGoalPlanner(
+            this.bot,
+            this.systems.notifier,
+            this.systems
+        );
+
+        console.log('✓ All systems initialized (25 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, and Quest Planning. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
         this.systems.intelligence.addLongTermGoal('Build starter base', 0.8, { shelter: true });
         this.systems.intelligence.addLongTermGoal('Obtain diamond tools', 0.7, { diamond: 3 });
+        
+        // Start quest chain
+        const recommendedChain = this.systems.questPlanner.recommendNextChain();
+        if (recommendedChain) {
+            this.systems.questPlanner.startQuestChain(recommendedChain);
+        }
         
         // Start automatic backups
         this.systems.backup.startAutomaticBackups();

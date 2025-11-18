@@ -11,20 +11,102 @@ class CombatSystem {
         this.retreating = false;
         this.lastRetreatTime = 0;
         this.retreatCooldown = 15000; // 15 seconds cooldown between retreats
+        this.mobThreatAI = null; // Will be set after initialization
+    }
+
+    /**
+     * Set the Mob Threat AI system (called after initialization)
+     */
+    setMobThreatAI(mobThreatAI) {
+        this.mobThreatAI = mobThreatAI;
+        console.log('✓ Mob Threat AI linked to combat system');
     }
 
     async startCombatMonitoring() {
         setInterval(async () => {
             if (this.retreating) return;
 
-            const threats = await this.safety.checkNearbyDangers();
-            
-            if (threats.length > 0 && this.safety.isSafe()) {
-                await this.engageCombat(threats);
-            } else if (threats.length > 0 && !this.safety.isSafe() && this.canRetreat()) {
-                await this.retreat();
+            // Use Mob Threat AI if available for better threat assessment
+            if (this.mobThreatAI) {
+                const situation = this.mobThreatAI.assessThreatSituation();
+                
+                // Check for preemptive retreat
+                if (this.mobThreatAI.shouldPreemptivelyRetreat(this.bot.health)) {
+                    console.log('Preemptive retreat triggered by Mob Threat AI');
+                    await this.mobThreatAI.executeRetreat();
+                    return;
+                }
+                
+                // Engage if we can fight
+                if (situation.canFight && situation.immediate.length > 0) {
+                    await this.engageCombatAdvanced(situation);
+                }
+            } else {
+                // Fallback to original logic
+                const threats = await this.safety.checkNearbyDangers();
+                
+                if (threats.length > 0 && this.safety.isSafe()) {
+                    await this.engageCombat(threats);
+                } else if (threats.length > 0 && !this.safety.isSafe() && this.canRetreat()) {
+                    await this.retreat();
+                }
             }
         }, 5000); // Check every 5 seconds (increased from 2)
+    }
+
+    /**
+     * Advanced combat engagement using Mob Threat AI
+     */
+    async engageCombatAdvanced(situation) {
+        if (!this.safety.isSafe() && this.canRetreat()) {
+            await this.mobThreatAI.executeRetreat();
+            return;
+        }
+
+        const target = situation.mostDangerous;
+        if (!target) return;
+
+        console.log(`Engaging ${target.type} (danger score: ${target.dangerScore})`);
+        
+        // Equip best weapon
+        await this.inventory.equipBestWeapon();
+        
+        // Try to equip shield for defense
+        await this.equipShield();
+
+        this.currentTarget = target.entity;
+
+        try {
+            // Move towards enemy
+            await this.bot.pathfinder.goto(new goals.GoalNear(
+                target.position.x,
+                target.position.y,
+                target.position.z,
+                2
+            ));
+
+            // Attack
+            await this.attackEntity(target.entity);
+            
+            // Record outcome
+            this.mobThreatAI.recordThreatEncounter(target, 'defeated');
+        } catch (error) {
+            // Suppress PartialReadError - these are non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                // Silently ignore protocol errors during combat
+                return;
+            }
+            console.error('Error in advanced combat:', error.message);
+            
+            // Record failed encounter
+            if (this.mobThreatAI && target) {
+                this.mobThreatAI.recordThreatEncounter(target, 'retreated');
+            }
+        } finally {
+            this.currentTarget = null;
+        }
     }
 
     async engageCombat(threats) {
