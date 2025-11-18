@@ -118,6 +118,11 @@ class ResourceGatherer {
             
             return collected > 0;
         } catch (error) {
+            // Suppress "goal was changed" errors - these occur when priorities shift
+            if (error.message?.includes('goal was changed')) {
+                console.log('Wood collection interrupted by priority change');
+                return false;
+            }
             console.error('Error collecting wood:', error.message);
             return false;
         }

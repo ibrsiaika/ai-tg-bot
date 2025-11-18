@@ -98,6 +98,11 @@ class CombatSystem {
                 // Silently ignore protocol errors during combat
                 return;
             }
+            // Suppress "goal was changed" errors - these occur when retreating during combat
+            if (error.message?.includes('goal was changed')) {
+                // Silently ignore - expected when priorities shift
+                return;
+            }
             console.error('Error in advanced combat:', error.message);
             
             // Record failed encounter
@@ -146,6 +151,11 @@ class CombatSystem {
                 error.message?.includes('PartialReadError') ||
                 error.message?.includes('Read error')) {
                 // Silently ignore protocol errors during combat
+                return;
+            }
+            // Suppress "goal was changed" errors - these occur when retreating during combat
+            if (error.message?.includes('goal was changed')) {
+                // Silently ignore - expected when priorities shift
                 return;
             }
             console.error('Error in combat:', error.message);
