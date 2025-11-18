@@ -29,6 +29,8 @@ class AutonomousMinecraftBot {
         this.config = config;
         this.bot = null;
         this.systems = {};
+        this.errorCounts = new Map(); // Track error counts for rate limiting
+        this.lastErrorTime = new Map(); // Track last error time for rate limiting
     }
 
     async start() {
@@ -54,6 +56,38 @@ class AutonomousMinecraftBot {
 
         // Start autonomous behavior
         this.systems.behavior.start();
+    }
+
+    /**
+     * Log errors with rate limiting to prevent console spam
+     * Only logs the same error type once per minute
+     */
+    logRateLimitedError(errorType, message) {
+        const now = Date.now();
+        const rateLimitMs = 60000; // 1 minute
+        
+        // Initialize counter if not exists
+        if (!this.errorCounts.has(errorType)) {
+            this.errorCounts.set(errorType, 0);
+            this.lastErrorTime.set(errorType, 0);
+        }
+        
+        const count = this.errorCounts.get(errorType);
+        const lastTime = this.lastErrorTime.get(errorType);
+        
+        // Increment counter
+        this.errorCounts.set(errorType, count + 1);
+        
+        // Only log if enough time has passed
+        if (now - lastTime > rateLimitMs) {
+            const totalCount = this.errorCounts.get(errorType);
+            if (totalCount === 1) {
+                console.warn(`⚠ ${errorType} detected (non-fatal, will be suppressed if repeated): ${message}`);
+            } else {
+                console.warn(`⚠ ${errorType} occurred ${totalCount} times in last ${Math.floor((now - lastTime) / 1000)}s (suppressing further messages for 1 min)`);
+            }
+            this.lastErrorTime.set(errorType, now);
+        }
     }
 
     setupEventHandlers() {
@@ -83,7 +117,7 @@ class AutonomousMinecraftBot {
         this.bot.on('error', (err) => {
             // Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
             if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError')) {
-                console.warn('⚠ Protocol packet parsing error (non-fatal):', err.message);
+                this.logRateLimitedError('PartialReadError', err.message);
                 // Log but don't crash - the bot can continue operating
                 return;
             }
@@ -98,7 +132,7 @@ class AutonomousMinecraftBot {
                     // Handle PartialReadError and other protocol errors gracefully
                     if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError') || 
                         err.message?.includes('Read error')) {
-                        console.warn('⚠ Client protocol parsing error (non-fatal):', err.message || err.name);
+                        this.logRateLimitedError('ClientProtocolError', err.message || err.name);
                         // Don't let these errors crash the bot
                         return;
                     }
