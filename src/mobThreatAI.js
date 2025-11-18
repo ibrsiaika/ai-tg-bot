@@ -232,6 +232,9 @@ class MobThreatAI {
         );
         
         try {
+            // Stop any existing pathfinding goal to prevent "goal was changed" errors
+            this.bot.pathfinder.setGoal(null);
+            
             await this.notifier.send('⚠️ Retreating from threats');
             
             const goal = new goals.GoalNear(retreatTarget.x, retreatTarget.y, retreatTarget.z, 5);
@@ -240,7 +243,10 @@ class MobThreatAI {
             console.log('Retreat successful');
             return true;
         } catch (error) {
-            console.error('Retreat failed:', error.message);
+            // Filter out "goal was changed" errors as they're expected when priorities shift
+            if (!error.message?.includes('goal was changed')) {
+                console.error('Retreat failed:', error.message);
+            }
             return false;
         }
     }

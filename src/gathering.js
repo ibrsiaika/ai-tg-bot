@@ -49,16 +49,24 @@ class ResourceGatherer {
             while (collected < count && searchAttempts < maxSearchAttempts) {
                 // First, try to find a tree using known locations
                 let treePos = null;
+                let foundFromMemory = false;
                 
                 if (this.exploration) {
                     const knownTree = this.exploration.findNearestKnownTree();
                     if (knownTree) {
                         treePos = knownTree.position;
-                        console.log(`Found tree in memory at ${treePos.toString()}`);
+                        foundFromMemory = true;
+                        // Verify the tree actually exists at this location
+                        const tree = this.bot.blockAt(treePos);
+                        if (!tree || !woodTypes.includes(tree.name)) {
+                            // Tree no longer exists, clear this memory and continue
+                            treePos = null;
+                            foundFromMemory = false;
+                        }
                     }
                 }
                 
-                // If no known tree, search for one nearby
+                // If no known tree or memory was invalid, search for one nearby
                 if (!treePos) {
                     const tree = this.bot.findBlock({
                         matching: block => woodTypes.includes(block.name),
@@ -92,7 +100,12 @@ class ResourceGatherer {
                     // Pick up drops
                     await this.collectDrops(treePosition, 500);
                 } else {
+                    // Tree doesn't exist at this position
                     searchAttempts++;
+                    // If we got this from memory, the memory is stale, so search again
+                    if (foundFromMemory) {
+                        console.log('Memorized tree no longer exists, searching for new trees...');
+                    }
                 }
             }
 
@@ -105,6 +118,11 @@ class ResourceGatherer {
             
             return collected > 0;
         } catch (error) {
+            // Suppress "goal was changed" errors - these occur when priorities shift
+            if (error.message?.includes('goal was changed')) {
+                console.log('Wood collection interrupted by priority change');
+                return false;
+            }
             console.error('Error collecting wood:', error.message);
             return false;
         }

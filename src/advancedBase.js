@@ -2,13 +2,18 @@ const { goals } = require('mineflayer-pathfinder');
 const Vec3 = require('vec3');
 
 class AdvancedBaseSystem {
-    constructor(bot, pathfinder, notifier, inventoryManager, buildingSystem) {
+    constructor(bot, pathfinder, notifier, inventoryManager, buildingSystem, craftingSystem = null) {
         this.bot = bot;
         this.pathfinder = pathfinder;
         this.notifier = notifier;
         this.inventory = inventoryManager;
         this.building = buildingSystem;
+        this.crafting = craftingSystem;
         this.baseLevel = 0; // Track base progression
+    }
+
+    setCraftingSystem(craftingSystem) {
+        this.crafting = craftingSystem;
     }
 
     async buildAdvancedBase(centerPos) {
@@ -22,6 +27,10 @@ class AdvancedBaseSystem {
         // Phase 2: Walls with battlements
         await this.buildFortifiedWalls(centerPos, 15, 15, 5);
         
+        // Verify and repair foundation and walls after initial construction
+        console.log('Verifying structure integrity...');
+        await this.repairStructure(centerPos, 15, 15, 5);
+        
         // Phase 3: Watchtowers at corners
         await this.buildWatchtowers(centerPos, 15, 15);
         
@@ -33,6 +42,10 @@ class AdvancedBaseSystem {
         
         // Phase 6: Moat (optional, if water available)
         await this.buildMoat(centerPos, 17);
+        
+        // Final integrity check
+        console.log('Performing final integrity check...');
+        await this.repairStructure(centerPos, 15, 15, 5);
 
         await this.notifier.send('Advanced base construction complete!');
         this.baseLevel = 3;
@@ -47,6 +60,9 @@ class AdvancedBaseSystem {
         const halfWidth = Math.floor(width / 2);
         const halfDepth = Math.floor(depth / 2);
 
+        // Equip pickaxe for clearing blocks
+        await this.inventory.equipBestTool('pickaxe');
+
         // Clear area first
         for (let x = -halfWidth - 2; x <= halfWidth + 2; x++) {
             for (let z = -halfDepth - 2; z <= halfDepth + 2; z++) {
@@ -54,6 +70,10 @@ class AdvancedBaseSystem {
                     const block = this.bot.blockAt(centerPos.offset(x, y, z));
                     if (block && block.name !== 'air' && block.name !== 'bedrock') {
                         try {
+                            // Re-equip pickaxe if needed (in case it broke)
+                            if (!this.bot.heldItem || !this.bot.heldItem.name.includes('pickaxe')) {
+                                await this.inventory.equipBestTool('pickaxe');
+                            }
                             await this.bot.dig(block);
                             await this.sleep(50);
                         } catch (error) {
@@ -242,6 +262,18 @@ class AdvancedBaseSystem {
     async buildInteriorStructures(centerPos) {
         console.log('Building interior structures');
         
+        // Ensure we have doors for interior rooms
+        if (this.crafting) {
+            const doorCount = this.bot.inventory.items().filter(item => 
+                item.name.includes('_door')
+            ).length;
+            
+            if (doorCount < 2) {
+                console.log('Crafting doors for interior structures...');
+                await this.crafting.craftDoor(2);
+            }
+        }
+        
         // Storage room
         await this.buildStorageRoom(centerPos.offset(-5, 0, -5));
         
@@ -366,6 +398,106 @@ class AdvancedBaseSystem {
         }
 
         console.log('Moat trench dug (water placement requires manual intervention)');
+    }
+
+    /**
+     * Check if structure at position is intact
+     */
+    async checkStructureIntegrity(centerPos, width, depth, height) {
+        console.log('Checking structure integrity...');
+        
+        const halfWidth = Math.floor(width / 2);
+        const halfDepth = Math.floor(depth / 2);
+        const missingBlocks = [];
+
+        // Check foundation
+        for (let x = -halfWidth; x <= halfWidth; x++) {
+            for (let z = -halfDepth; z <= halfDepth; z++) {
+                const pos = centerPos.offset(x, -1, z);
+                const block = this.bot.blockAt(pos);
+                
+                if (!block || block.name === 'air') {
+                    missingBlocks.push({ pos, type: 'foundation' });
+                }
+            }
+        }
+
+        // Check walls
+        for (let y = 0; y < height; y++) {
+            // North and South walls
+            for (let x = -halfWidth; x <= halfWidth; x++) {
+                const northBlock = this.bot.blockAt(centerPos.offset(x, y, -halfDepth));
+                const southBlock = this.bot.blockAt(centerPos.offset(x, y, halfDepth));
+                
+                if (!northBlock || northBlock.name === 'air') {
+                    missingBlocks.push({ pos: centerPos.offset(x, y, -halfDepth), type: 'wall' });
+                }
+                if (!southBlock || southBlock.name === 'air') {
+                    missingBlocks.push({ pos: centerPos.offset(x, y, halfDepth), type: 'wall' });
+                }
+            }
+
+            // East and West walls
+            for (let z = -halfDepth; z <= halfDepth; z++) {
+                const eastBlock = this.bot.blockAt(centerPos.offset(-halfWidth, y, z));
+                const westBlock = this.bot.blockAt(centerPos.offset(halfWidth, y, z));
+                
+                if (!eastBlock || eastBlock.name === 'air') {
+                    missingBlocks.push({ pos: centerPos.offset(-halfWidth, y, z), type: 'wall' });
+                }
+                if (!westBlock || westBlock.name === 'air') {
+                    missingBlocks.push({ pos: centerPos.offset(halfWidth, y, z), type: 'wall' });
+                }
+            }
+        }
+
+        console.log(`Structure check complete: ${missingBlocks.length} blocks missing`);
+        return missingBlocks;
+    }
+
+    /**
+     * Repair damaged or incomplete structures
+     */
+    async repairStructure(centerPos, width = 15, depth = 15, height = 5) {
+        console.log('Initiating structure repair...');
+        
+        const missingBlocks = await this.checkStructureIntegrity(centerPos, width, depth, height);
+        
+        if (missingBlocks.length === 0) {
+            console.log('Structure is intact, no repairs needed');
+            await this.notifier.send('✓ Structure integrity verified');
+            return true;
+        }
+
+        console.log(`Repairing ${missingBlocks.length} damaged blocks...`);
+        await this.notifier.send(`🔧 Repairing structure (${missingBlocks.length} blocks)`);
+
+        const repairMaterial = await this.inventory.findItem('stone') || 
+                              await this.inventory.findItem('cobblestone');
+        
+        if (!repairMaterial) {
+            console.log('No repair material available');
+            return false;
+        }
+
+        let repaired = 0;
+        for (const { pos, type } of missingBlocks) {
+            try {
+                const block = this.bot.blockAt(pos);
+                if (!block || block.name === 'air') {
+                    await this.building.placeBlockAt(pos, 'stone');
+                    repaired++;
+                    await this.sleep(100);
+                }
+            } catch (error) {
+                // Continue with next block
+            }
+        }
+
+        console.log(`Repair complete: ${repaired}/${missingBlocks.length} blocks restored`);
+        await this.notifier.send(`✓ Structure repaired: ${repaired} blocks restored`);
+        
+        return repaired > 0;
     }
 
     async upgradeBase() {
