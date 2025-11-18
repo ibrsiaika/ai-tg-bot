@@ -486,6 +486,26 @@ console.log('Starting bot...');
 console.log('═══════════════════════════════════════════════');
 console.log('');
 
+// Intercept console.error to filter out PartialReadError stack traces
+const originalConsoleError = console.error;
+console.error = function(...args) {
+    // Convert arguments to string for checking
+    const errorString = args.join(' ');
+    
+    // Filter out PartialReadError stack traces
+    if (errorString.includes('PartialReadError') || 
+        errorString.includes('Read error for undefined') ||
+        errorString.includes('protodef/src/') ||
+        errorString.includes('SlotComponent') ||
+        errorString.includes('packet_entity_equipment')) {
+        // Silently suppress these non-fatal protocol errors
+        return;
+    }
+    
+    // Pass through all other errors
+    originalConsoleError.apply(console, args);
+};
+
 // Global error handlers for protocol errors
 process.on('unhandledRejection', (reason, promise) => {
     // Suppress PartialReadError from unhandled promise rejections
@@ -495,7 +515,7 @@ process.on('unhandledRejection', (reason, promise) => {
         // Silently ignore - these are non-fatal protocol errors
         return;
     }
-    console.error('Unhandled Promise Rejection:', reason);
+    originalConsoleError('Unhandled Promise Rejection:', reason);
 });
 
 process.on('uncaughtException', (error) => {
@@ -506,7 +526,7 @@ process.on('uncaughtException', (error) => {
         // Silently ignore - these are non-fatal protocol errors
         return;
     }
-    console.error('Uncaught Exception:', error);
+    originalConsoleError('Uncaught Exception:', error);
 });
 
 const autonomousBot = new AutonomousMinecraftBot(config);
