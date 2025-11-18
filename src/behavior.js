@@ -5,10 +5,14 @@ class BehaviorManager {
         this.notifier = notifier;
         this.safety = safetyMonitor;
         this.intelligence = systems.intelligence; // Link to intelligence system
+        this.geminiAI = systems.geminiAI; // Link to Gemini AI (NEW)
+        this.aiOrchestrator = null; // Will be set after initialization (NEW)
         
         // Configuration constants
         this.INTELLIGENCE_REPORT_INTERVAL = 50; // Generate report every N decisions
         this.MAX_CONSECUTIVE_FAILURES = 2; // Maximum attempts before skipping goal
+        this.AI_DECISION_INTERVAL = 10; // Use AI every N decisions
+        this.ORCHESTRATOR_DECISION_INTERVAL = 5; // Use orchestrator more frequently
         
         this.currentGoal = null;
         this.isActive = false;
@@ -52,6 +56,12 @@ class BehaviorManager {
     async start() {
         console.log('Behavior manager started - operating autonomously');
         this.isActive = true;
+        
+        // Link to AI Orchestrator after all systems initialized
+        if (this.systems.aiOrchestrator) {
+            this.aiOrchestrator = this.systems.aiOrchestrator;
+            console.log('✓ Behavior linked to AI Orchestrator');
+        }
         
         await this.notifier.notifyStatus('Bot activated - autonomous mode');
         
@@ -104,7 +114,22 @@ class BehaviorManager {
     }
 
     async chooseNextGoal() {
-        console.log('Choosing next autonomous goal (Enhanced AI with Intelligence System)');
+        console.log('Choosing next autonomous goal (Enhanced AI with Intelligence System + Gemini AI)');
+        
+        // Increment decision counter
+        this.decisionCount++;
+        
+        // Use AI Orchestrator for strategic decisions if available
+        if (this.aiOrchestrator && this.decisionCount % this.ORCHESTRATOR_DECISION_INTERVAL === 0) {
+            const decision = await this.getOrchestratorDecision();
+            if (decision) {
+                console.log(`🎯 Orchestrator: ${decision.action} (${decision.source})`);
+            }
+        }
+        // Fallback: Get AI suggestion periodically if Gemini is enabled
+        else if (this.geminiAI && this.geminiAI.isReady() && this.decisionCount % this.AI_DECISION_INTERVAL === 0) {
+            await this.getAIDecisionSuggestion();
+        }
         
         // Update intelligence system with current inventory
         if (this.intelligence) {
@@ -544,7 +569,20 @@ class BehaviorManager {
         const hasFood = await this.systems.inventory.findFood();
         
         if (hasFood) {
-            await this.systems.inventory.eatFood();
+            // Use protected eating if available
+            if (this.systems.itemProtection && this.systems.itemProtection.canSafelyEat()) {
+                await this.systems.itemProtection.safelyEatFood();
+            } else if (this.systems.itemProtection) {
+                console.log('⚠️ Not safe to eat right now (threats nearby)');
+                // Wait a bit and retry
+                await this.sleep(2000);
+                if (this.systems.itemProtection.canSafelyEat()) {
+                    await this.systems.itemProtection.safelyEatFood();
+                }
+            } else {
+                // Fallback to normal eating if protection system not available
+                await this.systems.inventory.eatFood();
+            }
         } else {
             // Try to find food sources
             await this.systems.farming.autoFarm();
@@ -880,6 +918,100 @@ Tools Upgraded: ${this.performanceMetrics.toolsUpgraded}`;
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Get decision from AI Orchestrator (hybrid intelligence)
+     */
+    async getOrchestratorDecision() {
+        if (!this.aiOrchestrator) return null;
+        
+        try {
+            const context = {
+                type: 'strategic',
+                complexity: 0.7,
+                urgency: this.safety.isCriticalHealth() ? 0.9 : 0.3,
+                stateSnapshot: {
+                    health: this.bot.health,
+                    food: this.bot.food,
+                    timeOfDay: this.bot.time.timeOfDay,
+                    position: this.bot.entity.position,
+                    threats: this.getNearbyThreats(),
+                    inventoryFull: this.systems.inventory.isInventoryFull(),
+                    tools: await this.getToolStatus()
+                }
+            };
+            
+            const decision = await this.aiOrchestrator.routeDecision(context);
+            
+            // Log to Telegram occasionally
+            if (this.decisionCount % 25 === 0 && decision.source !== 'cache') {
+                await this.notifier.send(
+                    `🎯 ${decision.source.toUpperCase()}: ${decision.action}\n` +
+                    `${decision.reasoning || 'Optimized decision'}`
+                );
+            }
+            
+            return decision;
+        } catch (error) {
+            console.error('Orchestrator decision failed:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Get AI decision suggestion from Gemini AI
+     */
+    async getAIDecisionSuggestion() {
+        try {
+            const gameState = {
+                health: this.bot.health,
+                food: this.bot.food,
+                timeOfDay: this.bot.time.timeOfDay,
+                position: this.bot.entity.position,
+                threats: this.getNearbyThreats(),
+                inventoryFull: this.systems.inventory.isInventoryFull(),
+                tools: await this.getToolStatus()
+            };
+
+            const aiDecision = await this.geminiAI.getDecision(gameState);
+            
+            if (aiDecision && aiDecision.action) {
+                console.log(`🤖 Gemini AI suggests: ${aiDecision.action} (${aiDecision.priority}) - ${aiDecision.reasoning}`);
+                
+                // Log to Telegram occasionally
+                if (this.decisionCount % 20 === 0) {
+                    await this.notifier.send(`🤖 AI: ${aiDecision.action} - ${aiDecision.reasoning}`);
+                }
+            }
+        } catch (error) {
+            console.error('Error getting AI suggestion:', error.message);
+        }
+    }
+
+    /**
+     * Get nearby threats for AI context
+     */
+    getNearbyThreats() {
+        const hostileMobs = Object.values(this.bot.entities).filter(entity => {
+            if (!entity || !entity.position) return false;
+            const distance = this.bot.entity.position.distanceTo(entity.position);
+            return entity.type === 'mob' && entity.mobType === 'Hostile' && distance < 16;
+        });
+        return hostileMobs.length;
+    }
+
+    /**
+     * Get tool status for AI context
+     */
+    async getToolStatus() {
+        const tools = await this.systems.inventory.hasBasicTools();
+        return {
+            hasPickaxe: tools.hasPickaxe,
+            hasAxe: tools.hasAxe,
+            hasShovel: tools.hasShovel,
+            hasSword: tools.hasSword
+        };
     }
 }
 

@@ -1,27 +1,37 @@
 {
   "name": "autonomous-minecraft-bot",
-  "version": "1.0.0",
-  "description": "Fully autonomous Minecraft bot with Telegram notifications",
+  "version": "3.0.0",
+  "description": "Game-changing autonomous Minecraft bot with hybrid AI, advanced error recovery, and performance optimization",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0"
+    "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0",
+    "validate": "node -c index.js && node -c src/*.js && echo '✓ All files validated'",
+    "check-env": "node -e \"require('dotenv').config(); console.log('✓ Environment loaded'); console.log('Host:', process.env.MINECRAFT_HOST); console.log('Telegram:', process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'Not configured'); console.log('Gemini AI:', process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured');\""
   },
   "keywords": [
     "minecraft",
     "bot",
     "mineflayer",
     "autonomous",
-    "telegram"
+    "telegram",
+    "ai",
+    "gemini",
+    "protection",
+    "optimization",
+    "hybrid-intelligence",
+    "self-healing",
+    "game-changer"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.3.1",
     "mineflayer": "*",
-    "mineflayer-pathfinder": "*",
     "mineflayer-collectblock": "*",
-    "node-telegram-bot-api": "*",
-    "dotenv": "^16.3.1"
+    "mineflayer-pathfinder": "*",
+    "node-telegram-bot-api": "*"
   }
 }

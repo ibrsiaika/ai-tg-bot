@@ -194,8 +194,12 @@ class CraftingSystem {
             return false;
         }
         
-        // Upgrade diamond tools to netherite
-        const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword'];
+        // Netherite upgrade process
+        // Note: Smithing table upgrades require the mineflayer-smithing plugin
+        // Since this plugin may not be available, we provide a graceful fallback
+        // For production use, install: npm install mineflayer-smithing
+        
+        const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword', 'helmet', 'chestplate', 'leggings', 'boots'];
         let upgraded = 0;
         
         for (const tool of toolTypes) {
@@ -204,11 +208,21 @@ class CraftingSystem {
             
             if (diamondTool && netheriteIngot) {
                 try {
-                    // Note: Smithing table upgrades would require mineflayer-smithing plugin
-                    // For now, just log the intention
-                    console.log(`Would upgrade diamond ${tool} to netherite (requires smithing plugin)`);
-                    // TODO: Implement actual smithing when plugin is available
-                    upgraded++;
+                    // Check if smithing plugin is available
+                    if (this.bot.smithing) {
+                        // Use plugin if available
+                        await this.bot.smithing.upgrade(diamondTool, netheriteIngot, smithingTable);
+                        console.log(`Upgraded diamond ${tool} to netherite`);
+                        upgraded++;
+                    } else {
+                        // Fallback: Manual smithing table interaction
+                        // This requires the smithing plugin or manual window handling
+                        console.log(`Smithing plugin not available. Cannot upgrade ${tool} automatically.`);
+                        console.log(`Install mineflayer-smithing: npm install mineflayer-smithing`);
+                        console.log(`Then add to bot: bot.loadPlugin(require('mineflayer-smithing').plugin)`);
+                        // Return false to indicate upgrade not possible without plugin
+                        return false;
+                    }
                 } catch (error) {
                     console.error(`Error upgrading ${tool} to netherite:`, error.message);
                 }
@@ -605,6 +619,381 @@ class CraftingSystem {
     
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // ============ ADVANCED CRAFTING RECIPES (NEW) ============
+
+    /**
+     * Craft a beacon for advanced base features
+     */
+    async craftBeacon() {
+        console.log('Crafting beacon...');
+        
+        // Requires 5 glass, 3 obsidian, 1 nether star
+        const hasGlass = await this.inventory.hasItem('glass', 5);
+        const hasObsidian = await this.inventory.hasItem('obsidian', 3);
+        const hasNetherStar = await this.inventory.hasItem('nether_star', 1);
+        
+        if (!hasGlass || !hasObsidian || !hasNetherStar) {
+            console.log('Missing materials for beacon (5 glass, 3 obsidian, 1 nether star)');
+            return false;
+        }
+        
+        const success = await this.craftItem('beacon', 1);
+        if (success) {
+            await this.notifier.send('🔮 Crafted beacon!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft an anvil for tool repair
+     */
+    async craftAnvil() {
+        console.log('Crafting anvil...');
+        
+        // Requires 3 iron blocks (27 iron ingots) + 4 iron ingots = 31 iron total
+        const hasIron = await this.inventory.hasItem('iron_ingot', 31);
+        
+        if (!hasIron) {
+            console.log('Need 31 iron ingots to craft anvil');
+            return false;
+        }
+        
+        // First craft iron blocks
+        for (let i = 0; i < 3; i++) {
+            await this.craftItem('iron_block', 1);
+        }
+        
+        const success = await this.craftItem('anvil', 1);
+        if (success) {
+            await this.notifier.send('⚒️ Crafted anvil for tool repair!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft brewing stand
+     */
+    async craftBrewingStand() {
+        console.log('Crafting brewing stand...');
+        
+        const hasBlazeRod = await this.inventory.hasItem('blaze_rod', 1);
+        const hasCobblestone = await this.inventory.hasItem('cobblestone', 3);
+        
+        if (!hasBlazeRod || !hasCobblestone) {
+            console.log('Need 1 blaze rod and 3 cobblestone for brewing stand');
+            return false;
+        }
+        
+        const success = await this.craftItem('brewing_stand', 1);
+        if (success) {
+            await this.notifier.send('🧪 Crafted brewing stand!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft enchantment table
+     */
+    async craftEnchantmentTable() {
+        console.log('Crafting enchantment table...');
+        
+        const hasBook = await this.inventory.hasItem('book', 1);
+        const hasDiamond = await this.inventory.hasItem('diamond', 2);
+        const hasObsidian = await this.inventory.hasItem('obsidian', 4);
+        
+        if (!hasBook || !hasDiamond || !hasObsidian) {
+            console.log('Need 1 book, 2 diamonds, 4 obsidian for enchantment table');
+            return false;
+        }
+        
+        const success = await this.craftItem('enchanting_table', 1);
+        if (success) {
+            await this.notifier.send('✨ Crafted enchantment table!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft hopper for automated item collection
+     */
+    async craftHopper() {
+        console.log('Crafting hopper...');
+        
+        const hasIron = await this.inventory.hasItem('iron_ingot', 5);
+        const hasChest = await this.inventory.hasItem('chest', 1);
+        
+        if (!hasIron || !hasChest) {
+            console.log('Need 5 iron ingots and 1 chest for hopper');
+            return false;
+        }
+        
+        const success = await this.craftItem('hopper', 1);
+        if (success) {
+            console.log('Crafted hopper');
+        }
+        return success;
+    }
+
+    /**
+     * Craft fence for base protection
+     */
+    async craftFence(count = 16) {
+        console.log(`Crafting ${count} fence pieces...`);
+        
+        const plankType = await this.findAvailablePlanks(4);
+        const hasSticks = await this.inventory.hasItem('stick', 2);
+        
+        if (!plankType || !hasSticks) {
+            console.log('Need 4 planks and 2 sticks per fence set');
+            return false;
+        }
+        
+        // Each craft makes 3 fences
+        const craftCount = Math.ceil(count / 3);
+        let crafted = 0;
+        
+        for (let i = 0; i < craftCount; i++) {
+            const fenceType = plankType.replace('_planks', '_fence');
+            if (await this.craftItem(fenceType, 1)) {
+                crafted += 3;
+            }
+        }
+        
+        if (crafted > 0) {
+            console.log(`Crafted ${crafted} fence pieces`);
+        }
+        return crafted >= count;
+    }
+
+    /**
+     * Craft fence gate
+     */
+    async craftFenceGate(count = 1) {
+        console.log(`Crafting ${count} fence gate(s)...`);
+        
+        const plankType = await this.findAvailablePlanks(2);
+        const hasSticks = await this.inventory.hasItem('stick', 4);
+        
+        if (!plankType || !hasSticks) {
+            console.log('Need 2 planks and 4 sticks for fence gate');
+            return false;
+        }
+        
+        const gateType = plankType.replace('_planks', '_fence_gate');
+        const success = await this.craftItem(gateType, count);
+        
+        if (success) {
+            console.log(`Crafted ${count} fence gate(s)`);
+        }
+        return success;
+    }
+
+    /**
+     * Craft ladder for vertical access
+     */
+    async craftLadder(count = 3) {
+        console.log(`Crafting ${count} ladder sets...`);
+        
+        const hasSticks = await this.inventory.hasItem('stick', 7 * count);
+        
+        if (!hasSticks) {
+            console.log(`Need ${7 * count} sticks for ${count} ladder sets`);
+            return false;
+        }
+        
+        const success = await this.craftItem('ladder', count);
+        if (success) {
+            console.log(`Crafted ${count * 3} ladders`);
+        }
+        return success;
+    }
+
+    /**
+     * Craft scaffolding for building
+     */
+    async craftScaffolding(count = 6) {
+        console.log(`Crafting ${count} scaffolding sets...`);
+        
+        const hasBamboo = await this.inventory.hasItem('bamboo', 6);
+        const hasString = await this.inventory.hasItem('string', 1);
+        
+        if (!hasBamboo || !hasString) {
+            console.log('Need 6 bamboo and 1 string for scaffolding');
+            return false;
+        }
+        
+        const success = await this.craftItem('scaffolding', count);
+        if (success) {
+            console.log(`Crafted ${count * 6} scaffolding blocks`);
+        }
+        return success;
+    }
+
+    /**
+     * Craft bookshelf for enchanting setup
+     */
+    async craftBookshelf(count = 15) {
+        console.log(`Crafting ${count} bookshelf/bookshelves...`);
+        
+        const plankType = await this.findAvailablePlanks(6 * count);
+        const hasBooks = await this.inventory.hasItem('book', 3 * count);
+        
+        if (!plankType || !hasBooks) {
+            console.log(`Need ${6 * count} planks and ${3 * count} books`);
+            return false;
+        }
+        
+        let crafted = 0;
+        for (let i = 0; i < count; i++) {
+            if (await this.craftItem('bookshelf', 1)) {
+                crafted++;
+            }
+        }
+        
+        if (crafted > 0) {
+            await this.notifier.send(`📚 Crafted ${crafted} bookshelf/bookshelves for enchanting!`);
+        }
+        return crafted >= count;
+    }
+
+    /**
+     * Craft blast furnace for faster ore smelting
+     */
+    async craftBlastFurnace() {
+        console.log('Crafting blast furnace...');
+        
+        const hasIron = await this.inventory.hasItem('iron_ingot', 5);
+        const hasFurnace = await this.inventory.hasItem('furnace', 1);
+        const hasSmoothStone = await this.inventory.hasItem('smooth_stone', 3);
+        
+        if (!hasIron || !hasFurnace) {
+            console.log('Need 5 iron ingots and 1 furnace for blast furnace');
+            return false;
+        }
+        
+        if (!hasSmoothStone) {
+            // Try to craft smooth stone
+            const hasStone = await this.inventory.hasItem('stone', 3);
+            if (!hasStone) {
+                console.log('Also need 3 smooth stone (smelt regular stone)');
+                return false;
+            }
+        }
+        
+        const success = await this.craftItem('blast_furnace', 1);
+        if (success) {
+            await this.notifier.send('🔥 Crafted blast furnace for faster smelting!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft smoker for faster food cooking
+     */
+    async craftSmoker() {
+        console.log('Crafting smoker...');
+        
+        const hasFurnace = await this.inventory.hasItem('furnace', 1);
+        const hasLogs = this.bot.inventory.items().find(item => 
+            item.name.includes('log') || item.name.includes('stem')
+        );
+        
+        if (!hasFurnace || !hasLogs || hasLogs.count < 4) {
+            console.log('Need 1 furnace and 4 logs for smoker');
+            return false;
+        }
+        
+        const success = await this.craftItem('smoker', 1);
+        if (success) {
+            await this.notifier.send('🍖 Crafted smoker for faster cooking!');
+        }
+        return success;
+    }
+
+    /**
+     * Craft composter for efficient bone meal production
+     */
+    async craftComposter() {
+        console.log('Crafting composter...');
+        
+        const plankType = await this.findAvailablePlanks(7);
+        
+        if (!plankType) {
+            console.log('Need 7 planks for composter');
+            return false;
+        }
+        
+        const success = await this.craftItem('composter', 1);
+        if (success) {
+            console.log('Crafted composter');
+        }
+        return success;
+    }
+
+    /**
+     * Craft lectern for enchanting setup
+     */
+    async craftLectern() {
+        console.log('Crafting lectern...');
+        
+        const plankType = await this.findAvailablePlanks(4);
+        const hasBookshelf = await this.inventory.hasItem('bookshelf', 1);
+        
+        if (!plankType || !hasBookshelf) {
+            console.log('Need 4 planks and 1 bookshelf for lectern');
+            return false;
+        }
+        
+        const success = await this.craftItem('lectern', 1);
+        if (success) {
+            console.log('Crafted lectern');
+        }
+        return success;
+    }
+
+    /**
+     * Craft grindstone for removing enchantments
+     */
+    async craftGrindstone() {
+        console.log('Crafting grindstone...');
+        
+        const hasStick = await this.inventory.hasItem('stick', 2);
+        const hasStone = await this.inventory.hasItem('stone', 2);
+        const plankType = await this.findAvailablePlanks(2);
+        
+        if (!hasStick || !hasStone || !plankType) {
+            console.log('Need 2 sticks, 2 stone, 2 planks for grindstone');
+            return false;
+        }
+        
+        const success = await this.craftItem('grindstone', 1);
+        if (success) {
+            console.log('Crafted grindstone');
+        }
+        return success;
+    }
+
+    /**
+     * Craft cartography table for map making
+     */
+    async craftCartographyTable() {
+        console.log('Crafting cartography table...');
+        
+        const hasPaper = await this.inventory.hasItem('paper', 2);
+        const plankType = await this.findAvailablePlanks(4);
+        
+        if (!hasPaper || !plankType) {
+            console.log('Need 2 paper and 4 planks for cartography table');
+            return false;
+        }
+        
+        const success = await this.craftItem('cartography_table', 1);
+        if (success) {
+            console.log('Crafted cartography table');
+        }
+        return success;
     }
 }
 

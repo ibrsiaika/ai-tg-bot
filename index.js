@@ -32,6 +32,11 @@ const AdvancedFarmSystem = require('./src/advancedFarming');
 const SortingSystem = require('./src/sorting');
 const PerformanceAnalytics = require('./src/analytics');
 const MultiGoalPlanner = require('./src/questPlanner');
+const GeminiAI = require('./src/geminiAI');
+const ItemProtection = require('./src/itemProtection');
+const AIOrchestrator = require('./src/aiOrchestrator');
+const ErrorHandler = require('./src/errorHandler');
+const OptimizationManager = require('./src/optimizationManager');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -123,8 +128,14 @@ class AutonomousMinecraftBot {
             }
         });
 
-        this.bot.on('error', (err) => {
-            // Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
+        this.bot.on('error', async (err) => {
+            // Use advanced error handler if available
+            if (this.systems && this.systems.errorHandler) {
+                await this.systems.errorHandler.handleError(err, { source: 'bot_error_event' });
+                return;
+            }
+            
+            // Fallback: Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
             if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError')) {
                 this.logRateLimitedError('PartialReadError', err.message);
                 // Log but don't crash - the bot can continue operating
@@ -202,6 +213,12 @@ class AutonomousMinecraftBot {
             this.config.telegramChatId
         );
 
+        // Initialize Gemini AI (NEW - Phase 1)
+        this.systems.geminiAI = new GeminiAI(
+            this.config.geminiApiKey,
+            this.systems.notifier
+        );
+
         // Initialize advanced pathfinding (PHASE 2)
         this.systems.pathfinding = new AdvancedPathfinding(
             this.bot,
@@ -247,6 +264,20 @@ class AutonomousMinecraftBot {
             this.bot,
             this.systems.notifier,
             this.systems.inventory
+        );
+
+        // Initialize item protection system (NEW - Phase 3)
+        this.systems.itemProtection = new ItemProtection(
+            this.bot,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
+        // Initialize error handler (NEW - Optimization)
+        this.systems.errorHandler = new ErrorHandler(
+            this.bot,
+            this.systems,
+            this.systems.notifier
         );
 
         // Initialize tool durability manager (NEW) - must be after inventory and crafting
@@ -408,8 +439,22 @@ class AutonomousMinecraftBot {
             this.systems
         );
 
-        console.log('✓ All systems initialized (25 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, and Quest Planning. Beginning autonomous operations.');
+        // Initialize AI Orchestrator (NEW - Hybrid Intelligence)
+        this.systems.aiOrchestrator = new AIOrchestrator(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        // Initialize Optimization Manager (NEW - Performance)
+        this.systems.optimizationManager = new OptimizationManager(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        console.log('✓ All systems initialized (30 systems online)');
+        await this.systems.notifier.send('🤖 GAME CHANGER: 30 AI systems online! Hybrid Intelligence (AI Orchestrator), Advanced Error Recovery, Performance Optimization + Full Phase 2-4 features. Smart decision routing between Gemini AI & Bot Brain. Beginning fully optimized autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
@@ -424,6 +469,9 @@ class AutonomousMinecraftBot {
         
         // Start automatic backups
         this.systems.backup.startAutomaticBackups();
+        
+        // Start performance optimization
+        this.systems.optimizationManager.startOptimization();
     }
 }
 
@@ -435,6 +483,7 @@ const config = {
     version: process.env.MINECRAFT_VERSION || false,
     telegramToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
+    geminiApiKey: process.env.GEMINI_API_KEY,
     minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || CONSTANTS.SAFETY.DEFAULT_MIN_HEALTH_PERCENT,
     minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL
 };
