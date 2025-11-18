@@ -19,6 +19,10 @@ const ExplorationSystem = require('./src/exploration');
 const AdvancedBaseSystem = require('./src/advancedBase');
 const IntelligenceSystem = require('./src/intelligence');
 const ToolDurabilityManager = require('./src/toolDurability');
+const FishingSystem = require('./src/fishing');
+const BackupSystem = require('./src/backup');
+const Utils = require('./src/utils');
+const CONSTANTS = require('./src/constants');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -161,14 +165,6 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        // Initialize tool durability manager (NEW)
-        this.systems.toolDurability = new ToolDurabilityManager(
-            this.bot,
-            this.systems.inventory,
-            this.systems.crafting,
-            this.systems.notifier
-        );
-
         // Initialize safety monitor
         this.systems.safety = new SafetyMonitor(
             this.bot,
@@ -195,6 +191,14 @@ class AutonomousMinecraftBot {
             this.bot,
             this.systems.notifier,
             this.systems.inventory
+        );
+
+        // Initialize tool durability manager (NEW) - must be after inventory and crafting
+        this.systems.toolDurability = new ToolDurabilityManager(
+            this.bot,
+            this.systems.inventory,
+            this.systems.crafting,
+            this.systems.notifier
         );
 
         // Initialize mining system
@@ -237,6 +241,14 @@ class AutonomousMinecraftBot {
             this.systems.inventory
         );
 
+        // Initialize fishing system (NEW)
+        this.systems.fishing = new FishingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
         // Initialize exploration system (NEW)
         this.systems.exploration = new ExplorationSystem(
             this.bot,
@@ -268,13 +280,23 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
-        console.log('✓ All systems initialized (14 systems online)');
+        // Initialize backup system (NEW)
+        this.systems.backup = new BackupSystem(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        console.log('✓ All systems initialized (16 systems online)');
         await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
         this.systems.intelligence.addLongTermGoal('Build starter base', 0.8, { shelter: true });
         this.systems.intelligence.addLongTermGoal('Obtain diamond tools', 0.7, { diamond: 3 });
+        
+        // Start automatic backups
+        this.systems.backup.startAutomaticBackups();
     }
 }
 
@@ -286,9 +308,24 @@ const config = {
     version: process.env.MINECRAFT_VERSION || false,
     telegramToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
-    minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || 60,
-    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || 10
+    minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || CONSTANTS.SAFETY.DEFAULT_MIN_HEALTH_PERCENT,
+    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL
 };
+
+// Validate configuration
+const validation = Utils.validateConfig(config);
+if (!validation.valid) {
+    console.error('═══════════════════════════════════════════════');
+    console.error('  CONFIGURATION ERROR');
+    console.error('═══════════════════════════════════════════════');
+    console.error('');
+    console.error('The following configuration errors were found:');
+    validation.errors.forEach(error => console.error(`  ✗ ${error}`));
+    console.error('');
+    console.error('Please check your .env file and try again.');
+    console.error('═══════════════════════════════════════════════');
+    process.exit(1);
+}
 
 console.log('═══════════════════════════════════════════════');
 console.log('  AUTONOMOUS MINECRAFT BOT');
@@ -299,6 +336,8 @@ console.log('Configuration:');
 console.log(`  Server: ${config.host}:${config.port}`);
 console.log(`  Username: ${config.username}`);
 console.log(`  Telegram: ${config.telegramToken ? 'Enabled' : 'Disabled'}`);
+console.log(`  Health Threshold: ${config.minHealthPercent}%`);
+console.log(`  Food Threshold: ${config.minFoodLevel}`);
 console.log('');
 console.log('Features:');
 console.log('  ✓ Enhanced AI with adaptive behavior');
@@ -330,13 +369,24 @@ autonomousBot.start().catch(error => {
 });
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('\nShutting down bot...');
-    if (autonomousBot.systems.behavior) {
+    
+    // Create final backup before shutdown
+    if (autonomousBot.systems && autonomousBot.systems.backup) {
+        console.log('Creating final backup...');
+        await autonomousBot.systems.backup.createBackup();
+        autonomousBot.systems.backup.stopAutomaticBackups();
+    }
+    
+    if (autonomousBot.systems && autonomousBot.systems.behavior) {
         autonomousBot.systems.behavior.stop();
     }
+    
     if (autonomousBot.bot) {
         autonomousBot.bot.quit();
     }
+    
+    console.log('Bot shutdown complete');
     process.exit(0);
 });
