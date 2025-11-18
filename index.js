@@ -349,6 +349,9 @@ class AutonomousMinecraftBot {
             this.systems.inventory,
             this.systems.building
         );
+        
+        // Link crafting system to advanced base (after crafting is initialized)
+        this.systems.advancedBase.setCraftingSystem(this.systems.crafting);
 
         // Initialize behavior manager (autonomous decision making)
         this.systems.behavior = new BehaviorManager(

@@ -548,6 +548,60 @@ class CraftingSystem {
         
         return cooked;
     }
+
+    async craftDoor(count = 1) {
+        console.log(`Crafting ${count} door(s)...`);
+        
+        // Check if we have enough planks (6 planks = 3 doors)
+        const plankTypes = ['oak_planks', 'birch_planks', 'spruce_planks', 'jungle_planks', 
+                           'acacia_planks', 'dark_oak_planks'];
+        
+        let selectedPlank = null;
+        for (const plankType of plankTypes) {
+            if (await this.inventory.hasItem(plankType, 2)) {
+                selectedPlank = plankType;
+                break;
+            }
+        }
+
+        if (!selectedPlank) {
+            // Try to craft planks from logs
+            console.log('Not enough planks, attempting to craft from wood');
+            const hasWood = await this.craftPlanks();
+            if (!hasWood) {
+                console.log('Need wood to craft doors');
+                return false;
+            }
+            
+            // Re-check for planks
+            for (const plankType of plankTypes) {
+                if (await this.inventory.hasItem(plankType, 2)) {
+                    selectedPlank = plankType;
+                    break;
+                }
+            }
+        }
+
+        if (!selectedPlank) {
+            console.log('Still not enough planks for door');
+            return false;
+        }
+
+        // Craft doors (2 planks = 1 door for most types, but recipe varies)
+        const doorType = selectedPlank.replace('_planks', '_door');
+        
+        try {
+            for (let i = 0; i < count; i++) {
+                await this.craftItem(doorType, 1);
+                console.log(`Crafted ${doorType}`);
+            }
+            await this.notifier.send(`🚪 Crafted ${count} door(s)`);
+            return true;
+        } catch (error) {
+            console.error('Error crafting door:', error.message);
+            return false;
+        }
+    }
     
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
