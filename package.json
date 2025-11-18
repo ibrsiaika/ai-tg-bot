@@ -1,7 +1,7 @@
 {
   "name": "autonomous-minecraft-bot",
-  "version": "2.0.0",
-  "description": "Fully autonomous Minecraft bot with AI intelligence, item protection, and advanced crafting",
+  "version": "3.0.0",
+  "description": "Game-changing autonomous Minecraft bot with hybrid AI, advanced error recovery, and performance optimization",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -16,7 +16,9 @@
     "telegram",
     "ai",
     "gemini",
-    "protection"
+    "protection",
+    "optimization",
+    "hybrid-intelligence"
   ],
   "author": "",
   "license": "MIT",

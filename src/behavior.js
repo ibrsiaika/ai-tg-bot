@@ -6,11 +6,13 @@ class BehaviorManager {
         this.safety = safetyMonitor;
         this.intelligence = systems.intelligence; // Link to intelligence system
         this.geminiAI = systems.geminiAI; // Link to Gemini AI (NEW)
+        this.aiOrchestrator = null; // Will be set after initialization (NEW)
         
         // Configuration constants
         this.INTELLIGENCE_REPORT_INTERVAL = 50; // Generate report every N decisions
         this.MAX_CONSECUTIVE_FAILURES = 2; // Maximum attempts before skipping goal
         this.AI_DECISION_INTERVAL = 10; // Use AI every N decisions
+        this.ORCHESTRATOR_DECISION_INTERVAL = 5; // Use orchestrator more frequently
         
         this.currentGoal = null;
         this.isActive = false;
@@ -54,6 +56,12 @@ class BehaviorManager {
     async start() {
         console.log('Behavior manager started - operating autonomously');
         this.isActive = true;
+        
+        // Link to AI Orchestrator after all systems initialized
+        if (this.systems.aiOrchestrator) {
+            this.aiOrchestrator = this.systems.aiOrchestrator;
+            console.log('✓ Behavior linked to AI Orchestrator');
+        }
         
         await this.notifier.notifyStatus('Bot activated - autonomous mode');
         
@@ -111,8 +119,15 @@ class BehaviorManager {
         // Increment decision counter
         this.decisionCount++;
         
-        // Get AI suggestion periodically if Gemini is enabled
-        if (this.geminiAI && this.geminiAI.isReady() && this.decisionCount % this.AI_DECISION_INTERVAL === 0) {
+        // Use AI Orchestrator for strategic decisions if available
+        if (this.aiOrchestrator && this.decisionCount % this.ORCHESTRATOR_DECISION_INTERVAL === 0) {
+            const decision = await this.getOrchestratorDecision();
+            if (decision) {
+                console.log(`🎯 Orchestrator: ${decision.action} (${decision.source})`);
+            }
+        }
+        // Fallback: Get AI suggestion periodically if Gemini is enabled
+        else if (this.geminiAI && this.geminiAI.isReady() && this.decisionCount % this.AI_DECISION_INTERVAL === 0) {
             await this.getAIDecisionSuggestion();
         }
         
@@ -903,6 +918,45 @@ Tools Upgraded: ${this.performanceMetrics.toolsUpgraded}`;
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Get decision from AI Orchestrator (hybrid intelligence)
+     */
+    async getOrchestratorDecision() {
+        if (!this.aiOrchestrator) return null;
+        
+        try {
+            const context = {
+                type: 'strategic',
+                complexity: 0.7,
+                urgency: this.safety.isCriticalHealth() ? 0.9 : 0.3,
+                stateSnapshot: {
+                    health: this.bot.health,
+                    food: this.bot.food,
+                    timeOfDay: this.bot.time.timeOfDay,
+                    position: this.bot.entity.position,
+                    threats: this.getNearbyThreats(),
+                    inventoryFull: this.systems.inventory.isInventoryFull(),
+                    tools: await this.getToolStatus()
+                }
+            };
+            
+            const decision = await this.aiOrchestrator.routeDecision(context);
+            
+            // Log to Telegram occasionally
+            if (this.decisionCount % 25 === 0 && decision.source !== 'cache') {
+                await this.notifier.send(
+                    `🎯 ${decision.source.toUpperCase()}: ${decision.action}\n` +
+                    `${decision.reasoning || 'Optimized decision'}`
+                );
+            }
+            
+            return decision;
+        } catch (error) {
+            console.error('Orchestrator decision failed:', error.message);
+            return null;
+        }
     }
 
     /**

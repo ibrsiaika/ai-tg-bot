@@ -34,6 +34,9 @@ const PerformanceAnalytics = require('./src/analytics');
 const MultiGoalPlanner = require('./src/questPlanner');
 const GeminiAI = require('./src/geminiAI');
 const ItemProtection = require('./src/itemProtection');
+const AIOrchestrator = require('./src/aiOrchestrator');
+const ErrorHandler = require('./src/errorHandler');
+const OptimizationManager = require('./src/optimizationManager');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -125,8 +128,14 @@ class AutonomousMinecraftBot {
             }
         });
 
-        this.bot.on('error', (err) => {
-            // Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
+        this.bot.on('error', async (err) => {
+            // Use advanced error handler if available
+            if (this.systems && this.systems.errorHandler) {
+                await this.systems.errorHandler.handleError(err, { source: 'bot_error_event' });
+                return;
+            }
+            
+            // Fallback: Handle PartialReadError gracefully - these are protocol-level errors that don't require a restart
             if (err.name === 'PartialReadError' || err.message?.includes('PartialReadError')) {
                 this.logRateLimitedError('PartialReadError', err.message);
                 // Log but don't crash - the bot can continue operating
@@ -262,6 +271,13 @@ class AutonomousMinecraftBot {
             this.bot,
             this.systems.notifier,
             this.systems.inventory
+        );
+
+        // Initialize error handler (NEW - Optimization)
+        this.systems.errorHandler = new ErrorHandler(
+            this.bot,
+            this.systems,
+            this.systems.notifier
         );
 
         // Initialize tool durability manager (NEW) - must be after inventory and crafting
@@ -423,8 +439,22 @@ class AutonomousMinecraftBot {
             this.systems
         );
 
-        console.log('✓ All systems initialized (27 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features + Gemini AI Integration + Item Protection. Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, Quest Planning, and AI-powered decisions. Beginning autonomous operations.');
+        // Initialize AI Orchestrator (NEW - Hybrid Intelligence)
+        this.systems.aiOrchestrator = new AIOrchestrator(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        // Initialize Optimization Manager (NEW - Performance)
+        this.systems.optimizationManager = new OptimizationManager(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        console.log('✓ All systems initialized (30 systems online)');
+        await this.systems.notifier.send('🤖 GAME CHANGER: 30 AI systems online! Hybrid Intelligence (AI Orchestrator), Advanced Error Recovery, Performance Optimization + Full Phase 2-4 features. Smart decision routing between Gemini AI & Bot Brain. Beginning fully optimized autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
@@ -439,6 +469,9 @@ class AutonomousMinecraftBot {
         
         // Start automatic backups
         this.systems.backup.startAutomaticBackups();
+        
+        // Start performance optimization
+        this.systems.optimizationManager.startOptimization();
     }
 }
 
