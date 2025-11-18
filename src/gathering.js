@@ -63,13 +63,14 @@ class ResourceGatherer {
                 // Navigate to and chop the tree
                 const tree = this.bot.blockAt(treePos);
                 if (tree && woodTypes.includes(tree.name)) {
+                    const treePosition = tree.position.clone();
                     await this.bot.pathfinder.goto(new goals.GoalBlock(tree.position.x, tree.position.y, tree.position.z));
                     await this.bot.dig(tree);
                     collected++;
                     searchAttempts = 0; // Reset search attempts on success
                     
                     // Pick up drops
-                    await this.sleep(500);
+                    await this.collectDrops(treePosition, 500);
                 } else {
                     searchAttempts++;
                 }
@@ -108,11 +109,13 @@ class ResourceGatherer {
                     continue;
                 }
 
+                const stonePosition = stone.position.clone();
                 await this.bot.pathfinder.goto(new goals.GoalBlock(stone.position.x, stone.position.y, stone.position.z));
                 await this.bot.dig(stone);
                 collected++;
                 
-                await this.sleep(100);
+                // Collect drops
+                await this.collectDrops(stonePosition, 100);
             }
 
             await this.notifier.notifyResourceFound('stone', collected);
@@ -188,6 +191,13 @@ class ResourceGatherer {
                     entity.position.distanceTo(position) < 5
                 );
 
+                if (droppedItems.length === 0) {
+                    console.log('No dropped items found nearby');
+                    return;
+                }
+
+                console.log(`Found ${droppedItems.length} dropped item(s) to collect`);
+                
                 for (const item of droppedItems) {
                     try {
                         // Check inventory before collecting
@@ -199,11 +209,18 @@ class ResourceGatherer {
                         await this.bot.collectBlock.collect(item);
                         console.log('Collected dropped item');
                     } catch (collectError) {
-                        console.log('Could not collect item:', collectError.message);
+                        // Ignore protocol errors during item collection - they're non-fatal
+                        if (collectError.message?.includes('PartialReadError') || 
+                            collectError.message?.includes('Read error')) {
+                            console.log('Protocol error during item collection (non-fatal), continuing...');
+                        } else {
+                            console.log('Could not collect item:', collectError.message);
+                        }
                     }
                 }
             } else {
                 // Fallback: navigate close to position for auto-pickup
+                console.log('Using fallback method for item collection');
                 await this.bot.pathfinder.goto(new goals.GoalNear(
                     position.x,
                     position.y,
@@ -213,7 +230,13 @@ class ResourceGatherer {
                 await this.sleep(500);
             }
         } catch (error) {
-            console.error('Error collecting drops:', error.message);
+            // Ignore protocol errors - they're non-fatal
+            if (error.message?.includes('PartialReadError') || 
+                error.message?.includes('Read error')) {
+                console.log('Protocol error during item collection (non-fatal), continuing...');
+            } else {
+                console.error('Error collecting drops:', error.message);
+            }
         }
     }
 
@@ -434,11 +457,13 @@ class ResourceGatherer {
                     continue;
                 }
 
+                const coalPosition = coal.position.clone();
                 await this.bot.pathfinder.goto(new goals.GoalBlock(coal.position.x, coal.position.y, coal.position.z));
                 await this.bot.dig(coal);
                 collected++;
                 
-                await this.sleep(100);
+                // Collect drops
+                await this.collectDrops(coalPosition, 100);
             }
 
             await this.notifier.notifyResourceFound('coal', collected);

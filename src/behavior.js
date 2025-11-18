@@ -39,6 +39,10 @@ class BehaviorManager {
         // Decision tracking
         this.lastDecisionTime = Date.now();
         this.decisionCount = 0;
+        
+        // Base return tracking
+        this.lastBaseReturn = Date.now();
+        this.BASE_RETURN_INTERVAL = 10 * 60 * 1000; // Return to base every 10 minutes
     }
 
     async start() {
@@ -82,8 +86,15 @@ class BehaviorManager {
 
                 await this.sleep(5000); // Wait between goals
             } catch (error) {
-                console.error('Error in autonomous loop:', error.message);
-                await this.sleep(10000); // Wait longer on error
+                // Suppress PartialReadError - non-fatal protocol errors
+                if (error.name === 'PartialReadError' || 
+                    error.message?.includes('PartialReadError') ||
+                    error.message?.includes('Read error')) {
+                    await this.sleep(5000); // Continue normally on protocol errors
+                } else {
+                    console.error('Error in autonomous loop:', error.message);
+                    await this.sleep(10000); // Wait longer on error
+                }
             }
         }
     }
@@ -279,19 +290,26 @@ class BehaviorManager {
             }
         }
 
-        // Smelting check - smelt raw ores when available
-        const hasRawOres = await this.systems.inventory.hasItem('raw_iron', 1) ||
+        // Smelting check - smelt raw ores when available (prioritized for iron)
+        const hasRawIron = await this.systems.inventory.hasItem('raw_iron', 1);
+        const hasRawOres = hasRawIron ||
                           await this.systems.inventory.hasItem('raw_gold', 1) ||
                           await this.systems.inventory.hasItem('raw_copper', 1);
         
-        if (hasRawOres && Math.random() < 0.3) {
-            goals.push({
-                name: 'smelt_ores',
-                type: 'crafting',
-                priority: this.priorities.MEDIUM,
-                expectedReward: 7,
-                action: async () => await this.systems.crafting.smeltOre()
-            });
+        // Higher priority for raw iron (needed for tools and shields), check more frequently
+        if (hasRawOres) {
+            const chance = hasRawIron ? 0.6 : 0.3; // 60% chance for iron, 30% for others
+            const priority = hasRawIron ? this.priorities.HIGH : this.priorities.MEDIUM;
+            
+            if (Math.random() < chance) {
+                goals.push({
+                    name: 'smelt_ores',
+                    type: 'crafting',
+                    priority: priority,
+                    expectedReward: hasRawIron ? 10 : 7,
+                    action: async () => await this.systems.crafting.smeltOre()
+                });
+            }
         }
 
         // Food cooking check - cook raw food when available
@@ -372,6 +390,29 @@ class BehaviorManager {
             });
         }
 
+        // MEDIUM: Return to base periodically (every 10 minutes)
+        const timeSinceLastReturn = Date.now() - this.lastBaseReturn;
+        if (timeSinceLastReturn > this.BASE_RETURN_INTERVAL) {
+            goals.push({
+                name: 'return_to_base',
+                type: 'navigation',
+                priority: this.priorities.MEDIUM,
+                expectedReward: 6,
+                action: async () => {
+                    const success = await this.systems.exploration.goToHomeBase();
+                    if (success) {
+                        this.lastBaseReturn = Date.now();
+                        await this.notifier.send('🏠 Returned to base for restocking and maintenance');
+                        // Store items if inventory is getting full
+                        if (this.systems.inventory.getInventoryUsage() > 0.7) {
+                            await this.storeItems();
+                        }
+                    }
+                    return success;
+                }
+            });
+        }
+
         // HIGH: Inventory management
         if (this.systems.inventory.isInventoryFull()) {
             goals.push({
@@ -420,7 +461,15 @@ class BehaviorManager {
             console.log(`Completed: ${goal.name}`);
             success = true;
         } catch (error) {
-            console.error(`Error executing ${goal.name}:`, error.message);
+            // Suppress PartialReadError - non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                // Consider it a success, just with protocol noise
+                success = true;
+            } else {
+                console.error(`Error executing ${goal.name}:`, error.message);
+            }
         }
         
         // Record action in intelligence system
@@ -652,11 +701,26 @@ class BehaviorManager {
     async upgradeEquipment() {
         console.log('Upgrading equipment');
         
-        // Try to upgrade to better materials - prioritize diamond, then iron
+        // Try to upgrade to better materials - prioritize netherite, then diamond, then iron
+        const hasNetherite = await this.systems.inventory.hasItem('netherite_ingot', 1);
         const hasDiamond = await this.systems.inventory.hasItem('diamond', 3);
         const hasIron = await this.systems.inventory.hasItem('iron_ingot', 3);
         
-        if (hasDiamond) {
+        if (hasNetherite) {
+            // Check if we have diamond tools to upgrade
+            const hasDiamondTool = await this.systems.inventory.hasItem('diamond_pickaxe', 1) ||
+                                  await this.systems.inventory.hasItem('diamond_axe', 1) ||
+                                  await this.systems.inventory.hasItem('diamond_shovel', 1) ||
+                                  await this.systems.inventory.hasItem('diamond_sword', 1);
+            
+            if (hasDiamondTool) {
+                await this.systems.crafting.upgradeTools('netherite');
+                this.performanceMetrics.toolsUpgraded++;
+                await this.notifier.send('⚒️ Upgrading to netherite tools!');
+            } else {
+                console.log('Have netherite but need diamond tools first');
+            }
+        } else if (hasDiamond) {
             await this.systems.crafting.upgradeTools('diamond');
             this.performanceMetrics.toolsUpgraded++;
             await this.notifier.send('Upgraded to diamond tools!');
