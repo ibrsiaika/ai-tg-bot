@@ -26,6 +26,8 @@ const CONSTANTS = require('./src/constants');
 const AdvancedPathfinding = require('./src/pathfinding');
 const MobThreatAI = require('./src/mobThreatAI');
 const ResourcePredictor = require('./src/resourcePredictor');
+const NetherNavigation = require('./src/netherNavigation');
+const EnchantingSystem = require('./src/enchanting');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -263,6 +265,15 @@ class AutonomousMinecraftBot {
         // Set home position for mining
         this.systems.mining.setHome(this.bot.entity.position);
 
+        // Initialize Nether navigation (PHASE 2)
+        this.systems.netherNavigation = new NetherNavigation(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.safety
+        );
+
         // Initialize building system
         this.systems.building = new BuildingSystem(
             this.bot,
@@ -350,8 +361,17 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        console.log('✓ All systems initialized (19 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 features: Advanced Pathfinding, Mob Threat AI, and Resource Prediction. Beginning autonomous operations.');
+        // Initialize enchanting system (PHASE 2)
+        this.systems.enchanting = new EnchantingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.crafting
+        );
+
+        console.log('✓ All systems initialized (21 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, and Enchanting. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
