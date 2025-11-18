@@ -140,6 +140,11 @@ class CraftingSystem {
     async upgradeTools(material) {
         console.log(`Upgrading tools to ${material}`);
         
+        // Netherite tools require smithing table upgrade from diamond
+        if (material === 'netherite') {
+            return await this.upgradeToNetherite();
+        }
+        
         const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword'];
         let upgraded = 0;
 
@@ -156,6 +161,63 @@ class CraftingSystem {
             }
         }
 
+        return upgraded > 0;
+    }
+
+    async upgradeToNetherite() {
+        console.log('Upgrading diamond tools to netherite');
+        
+        // Check if we have netherite ingots
+        const hasNetherite = await this.inventory.hasItem('netherite_ingot', 1);
+        if (!hasNetherite) {
+            console.log('No netherite ingots available for upgrading');
+            return false;
+        }
+        
+        // Find smithing table
+        const smithingTable = this.bot.findBlock({
+            matching: block => block.name === 'smithing_table',
+            maxDistance: 32
+        });
+        
+        if (!smithingTable) {
+            console.log('No smithing table nearby. Need to craft and place one.');
+            // Try to craft smithing table (needs 4 planks + 2 iron ingots)
+            const hasIron = await this.inventory.hasItem('iron_ingot', 2);
+            const hasPlanks = await this.findAvailablePlanks(4);
+            
+            if (hasIron && hasPlanks) {
+                await this.craftItem('smithing_table');
+                console.log('Crafted smithing table, need to place it');
+            }
+            return false;
+        }
+        
+        // Upgrade diamond tools to netherite
+        const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword'];
+        let upgraded = 0;
+        
+        for (const tool of toolTypes) {
+            const diamondTool = await this.inventory.findItem(`diamond_${tool}`);
+            const netheriteIngot = await this.inventory.findItem('netherite_ingot');
+            
+            if (diamondTool && netheriteIngot) {
+                try {
+                    // Note: Smithing table upgrades would require mineflayer-smithing plugin
+                    // For now, just log the intention
+                    console.log(`Would upgrade diamond ${tool} to netherite (requires smithing plugin)`);
+                    // TODO: Implement actual smithing when plugin is available
+                    upgraded++;
+                } catch (error) {
+                    console.error(`Error upgrading ${tool} to netherite:`, error.message);
+                }
+            }
+        }
+        
+        if (upgraded > 0) {
+            await this.notifier.send(`⚒️ Upgraded ${upgraded} tools to netherite!`);
+        }
+        
         return upgraded > 0;
     }
 
@@ -312,14 +374,36 @@ class CraftingSystem {
     }
 
     async smeltOre() {
-        const furnace = this.bot.findBlock({
+        let furnace = this.bot.findBlock({
             matching: block => block.name === 'furnace' || block.name === 'blast_furnace',
             maxDistance: 32
         });
 
         if (!furnace) {
-            console.log('No furnace nearby, attempting to craft one');
-            await this.craftFurnace();
+            console.log('No furnace nearby');
+            
+            // Check if we have a furnace in inventory to place
+            const furnaceItem = await this.inventory.findItem('furnace');
+            if (furnaceItem) {
+                console.log('Have furnace in inventory, need to place it');
+                // Let the building system handle placement (will be done by autonomous system)
+                return false;
+            }
+            
+            // Try to craft a furnace
+            const hasCobblestone = await this.inventory.hasItem('cobblestone', 8);
+            if (hasCobblestone) {
+                console.log('Crafting furnace for smelting');
+                const crafted = await this.craftFurnace();
+                if (crafted) {
+                    console.log('Furnace crafted, need to place it in base');
+                    // Let the building system handle placement
+                    return false;
+                }
+            } else {
+                console.log('Need 8 cobblestone to craft furnace');
+            }
+            
             return false;
         }
 

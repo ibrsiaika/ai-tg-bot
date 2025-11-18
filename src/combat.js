@@ -378,8 +378,27 @@ class CombatSystem {
 
     async craftShield() {
         // Check if we have materials: 6 planks + 1 iron ingot
-        const hasIron = await this.inventory.hasItem('iron_ingot', 1);
+        let hasIron = await this.inventory.hasItem('iron_ingot', 1);
         const hasPlanks = await this.inventory.hasItem('planks', 6);
+        
+        // If no iron ingot but have raw iron and coal, try to smelt it
+        if (!hasIron) {
+            const hasRawIron = await this.inventory.hasItem('raw_iron', 1);
+            const hasCoal = await this.inventory.hasItem('coal', 1) || 
+                           await this.inventory.hasItem('charcoal', 1);
+            
+            if (hasRawIron && hasCoal) {
+                console.log('No iron ingot available, but have raw iron. Need to smelt first.');
+                console.log('Will wait for autonomous system to smelt raw iron');
+                return false;
+            } else if (hasRawIron && !hasCoal) {
+                console.log('Have raw iron but no fuel for smelting');
+                return false;
+            } else {
+                console.log('Insufficient materials for shield (need: 6 planks + 1 iron ingot or raw iron with fuel)');
+                return false;
+            }
+        }
         
         if (hasIron && hasPlanks) {
             console.log('Crafting shield for defense');
