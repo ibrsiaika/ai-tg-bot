@@ -19,6 +19,8 @@ const ExplorationSystem = require('./src/exploration');
 const AdvancedBaseSystem = require('./src/advancedBase');
 const IntelligenceSystem = require('./src/intelligence');
 const ToolDurabilityManager = require('./src/toolDurability');
+const Utils = require('./src/utils');
+const CONSTANTS = require('./src/constants');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -161,14 +163,6 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        // Initialize tool durability manager (NEW)
-        this.systems.toolDurability = new ToolDurabilityManager(
-            this.bot,
-            this.systems.inventory,
-            this.systems.crafting,
-            this.systems.notifier
-        );
-
         // Initialize safety monitor
         this.systems.safety = new SafetyMonitor(
             this.bot,
@@ -195,6 +189,14 @@ class AutonomousMinecraftBot {
             this.bot,
             this.systems.notifier,
             this.systems.inventory
+        );
+
+        // Initialize tool durability manager (NEW) - must be after inventory and crafting
+        this.systems.toolDurability = new ToolDurabilityManager(
+            this.bot,
+            this.systems.inventory,
+            this.systems.crafting,
+            this.systems.notifier
         );
 
         // Initialize mining system
@@ -286,9 +288,24 @@ const config = {
     version: process.env.MINECRAFT_VERSION || false,
     telegramToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
-    minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || 60,
-    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || 10
+    minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || CONSTANTS.SAFETY.DEFAULT_MIN_HEALTH_PERCENT,
+    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL
 };
+
+// Validate configuration
+const validation = Utils.validateConfig(config);
+if (!validation.valid) {
+    console.error('═══════════════════════════════════════════════');
+    console.error('  CONFIGURATION ERROR');
+    console.error('═══════════════════════════════════════════════');
+    console.error('');
+    console.error('The following configuration errors were found:');
+    validation.errors.forEach(error => console.error(`  ✗ ${error}`));
+    console.error('');
+    console.error('Please check your .env file and try again.');
+    console.error('═══════════════════════════════════════════════');
+    process.exit(1);
+}
 
 console.log('═══════════════════════════════════════════════');
 console.log('  AUTONOMOUS MINECRAFT BOT');
@@ -299,6 +316,8 @@ console.log('Configuration:');
 console.log(`  Server: ${config.host}:${config.port}`);
 console.log(`  Username: ${config.username}`);
 console.log(`  Telegram: ${config.telegramToken ? 'Enabled' : 'Disabled'}`);
+console.log(`  Health Threshold: ${config.minHealthPercent}%`);
+console.log(`  Food Threshold: ${config.minFoodLevel}`);
 console.log('');
 console.log('Features:');
 console.log('  ✓ Enhanced AI with adaptive behavior');
