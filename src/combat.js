@@ -379,7 +379,21 @@ class CombatSystem {
     async craftShield() {
         // Check if we have materials: 6 planks + 1 iron ingot
         let hasIron = await this.inventory.hasItem('iron_ingot', 1);
-        const hasPlanks = await this.inventory.hasItem('planks', 6);
+        
+        // Check for any type of planks (not just generic 'planks')
+        const PLANK_TYPES = [
+            'oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks',
+            'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks',
+            'bamboo_planks', 'crimson_planks', 'warped_planks'
+        ];
+        
+        let hasPlanks = false;
+        for (const plankType of PLANK_TYPES) {
+            if (await this.inventory.hasItem(plankType, 6)) {
+                hasPlanks = true;
+                break;
+            }
+        }
         
         // If no iron ingot but have raw iron and coal, try to smelt it
         if (!hasIron) {
@@ -403,13 +417,24 @@ class CombatSystem {
         if (hasIron && hasPlanks) {
             console.log('Crafting shield for defense');
             try {
-                // Use the crafting system to craft shield
-                const crafted = await this.bot.craft(this.bot.registry.itemsByName.shield, 1);
-                if (crafted) {
-                    await this.notifier.send('🛡️ Shield crafted for combat defense!');
-                    console.log('Shield crafted successfully');
-                    return true;
+                // Get the shield item and recipe
+                const shieldItem = this.bot.registry.itemsByName.shield;
+                if (!shieldItem) {
+                    console.log('Shield item not found in registry');
+                    return false;
                 }
+                
+                const recipes = this.bot.recipesFor(shieldItem.id, null, 1, null);
+                if (!recipes || recipes.length === 0) {
+                    console.log('No recipe found for shield');
+                    return false;
+                }
+                
+                const recipe = recipes[0];
+                await this.bot.craft(recipe, 1, null);
+                await this.notifier.send('🛡️ Shield crafted for combat defense!');
+                console.log('Shield crafted successfully');
+                return true;
             } catch (error) {
                 // Suppress PartialReadError - non-fatal protocol errors
                 if (error.name === 'PartialReadError' || 
