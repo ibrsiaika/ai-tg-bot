@@ -28,6 +28,8 @@ const MobThreatAI = require('./src/mobThreatAI');
 const ResourcePredictor = require('./src/resourcePredictor');
 const NetherNavigation = require('./src/netherNavigation');
 const EnchantingSystem = require('./src/enchanting');
+const AdvancedFarmSystem = require('./src/advancedFarming');
+const SortingSystem = require('./src/sorting');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -370,8 +372,25 @@ class AutonomousMinecraftBot {
             this.systems.crafting
         );
 
-        console.log('✓ All systems initialized (21 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, and Enchanting. Beginning autonomous operations.');
+        // Initialize advanced farming (PHASE 3)
+        this.systems.advancedFarming = new AdvancedFarmSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.building
+        );
+
+        // Initialize sorting system (PHASE 3)
+        this.systems.sorting = new SortingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
+        console.log('✓ All systems initialized (23 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 & 3 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, and Sorting. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
