@@ -19,6 +19,8 @@ const ExplorationSystem = require('./src/exploration');
 const AdvancedBaseSystem = require('./src/advancedBase');
 const IntelligenceSystem = require('./src/intelligence');
 const ToolDurabilityManager = require('./src/toolDurability');
+const FishingSystem = require('./src/fishing');
+const BackupSystem = require('./src/backup');
 const Utils = require('./src/utils');
 const CONSTANTS = require('./src/constants');
 
@@ -239,6 +241,14 @@ class AutonomousMinecraftBot {
             this.systems.inventory
         );
 
+        // Initialize fishing system (NEW)
+        this.systems.fishing = new FishingSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+
         // Initialize exploration system (NEW)
         this.systems.exploration = new ExplorationSystem(
             this.bot,
@@ -270,13 +280,23 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
-        console.log('✓ All systems initialized (14 systems online)');
+        // Initialize backup system (NEW)
+        this.systems.backup = new BackupSystem(
+            this.bot,
+            this.systems,
+            this.systems.notifier
+        );
+
+        console.log('✓ All systems initialized (16 systems online)');
         await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
         this.systems.intelligence.addLongTermGoal('Build starter base', 0.8, { shelter: true });
         this.systems.intelligence.addLongTermGoal('Obtain diamond tools', 0.7, { diamond: 3 });
+        
+        // Start automatic backups
+        this.systems.backup.startAutomaticBackups();
     }
 }
 
@@ -349,13 +369,24 @@ autonomousBot.start().catch(error => {
 });
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('\nShutting down bot...');
-    if (autonomousBot.systems.behavior) {
+    
+    // Create final backup before shutdown
+    if (autonomousBot.systems && autonomousBot.systems.backup) {
+        console.log('Creating final backup...');
+        await autonomousBot.systems.backup.createBackup();
+        autonomousBot.systems.backup.stopAutomaticBackups();
+    }
+    
+    if (autonomousBot.systems && autonomousBot.systems.behavior) {
         autonomousBot.systems.behavior.stop();
     }
+    
     if (autonomousBot.bot) {
         autonomousBot.bot.quit();
     }
+    
+    console.log('Bot shutdown complete');
     process.exit(0);
 });

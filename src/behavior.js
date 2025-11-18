@@ -237,6 +237,23 @@ class BehaviorManager {
             });
         }
 
+        // Fishing for food - especially useful when low on food
+        if (this.systems.fishing && Math.random() < 0.15) {
+            const foodCount = this.bot.inventory.items()
+                .filter(i => i.name.includes('fish') || i.name.includes('salmon') || i.name.includes('cod'))
+                .reduce((sum, i) => sum + i.count, 0);
+            
+            if (foodCount < 16) {
+                goals.push({
+                    name: 'auto_fish',
+                    type: 'fishing',
+                    priority: this.priorities.MEDIUM,
+                    expectedReward: 6,
+                    action: async () => await this.systems.fishing.autoFish(180000, 16)
+                });
+            }
+        }
+
         // Tool upgrading check
         if (Math.random() < 0.2) {
             goals.push({
@@ -421,9 +438,14 @@ class BehaviorManager {
             await this.systems.inventory.eatFood();
         }
 
-        if (this.safety.isLowHealth() && this.systems.combat.canRetreat()) {
-            await this.systems.combat.retreat();
-            await this.systems.combat.heal();
+        if (this.safety.isLowHealth()) {
+            // Use enhanced healing system
+            await this.safety.healBot(this.systems.inventory);
+            
+            // If still critical, retreat
+            if (this.safety.isCriticalHealth() && this.systems.combat.canRetreat()) {
+                await this.systems.combat.retreat();
+            }
         }
 
         const threats = await this.safety.checkNearbyDangers();

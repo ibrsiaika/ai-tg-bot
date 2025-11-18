@@ -1,6 +1,6 @@
 # Autonomous Minecraft Bot - Enhanced Edition
 
-A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, and **advanced base building**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, and combat. It sends important updates to your Telegram.
+A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, and **advanced base building**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, fishing, and combat. It sends important updates to your Telegram.
 
 ## 🤖 Enhanced Features
 
@@ -19,6 +19,26 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 - **Material Optimization**: Uses best available materials for crafting
 - **Priority System**: Focuses on most critical tools first
 - **Proactive Warnings**: Alerts before tools break completely
+
+### Automated Backup System (NEW)
+- **Periodic Backups**: Automatically saves bot state every 10 minutes
+- **State Preservation**: Preserves position, inventory, exploration data, and goals
+- **Crash Recovery**: Can restore from latest backup after disconnection
+- **Smart Cleanup**: Maintains only the 10 most recent backups
+- **Graceful Shutdown**: Creates final backup before bot shutdown
+
+### Fishing Automation (NEW)
+- **Auto-Fishing**: Autonomous fishing for food and resources
+- **Smart Rod Crafting**: Crafts fishing rod when needed
+- **Water Detection**: Finds suitable water bodies automatically
+- **Inventory Management**: Stops when inventory is full
+- **Session Tracking**: Monitors catches and fishing duration
+
+### Health Regeneration System (NEW)
+- **Smart Healing**: Eats food and waits for natural regeneration
+- **Food Management**: Maintains high food level for faster healing
+- **Critical Health Detection**: Takes defensive action when critically low
+- **Healing Cooldown**: Prevents heal spam with intelligent timing
 
 ### Advanced Intelligence System (ENHANCED)
 - **Adaptive Behavior**: Learns and adjusts strategies based on performance
