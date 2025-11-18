@@ -1,7 +1,7 @@
 {
   "name": "autonomous-minecraft-bot",
-  "version": "1.0.0",
-  "description": "Fully autonomous Minecraft bot with Telegram notifications",
+  "version": "2.0.0",
+  "description": "Fully autonomous Minecraft bot with AI intelligence, item protection, and advanced crafting",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -13,7 +13,10 @@
     "bot",
     "mineflayer",
     "autonomous",
-    "telegram"
+    "telegram",
+    "ai",
+    "gemini",
+    "protection"
   ],
   "author": "",
   "license": "MIT",
