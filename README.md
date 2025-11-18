@@ -1,8 +1,29 @@
 # Autonomous Minecraft Bot - Enhanced Edition
 
-A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, and **advanced base building**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, fishing, and combat. It sends important updates to your Telegram.
+A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, **advanced base building**, **Google Gemini AI integration**, and **comprehensive item protection**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, fishing, and combat. It sends important updates to your Telegram.
 
 ## 🤖 Enhanced Features
+
+### Google Gemini AI Integration (NEW)
+- **AI-Powered Decision Making**: Uses Google's free Gemini Flash model for intelligent decisions
+- **Crafting Suggestions**: AI recommends optimal items to craft based on resources and needs
+- **Building Advice**: Strategic recommendations for base development
+- **Danger Response**: Smart threat assessment and action recommendations
+- **Performance Analysis**: AI-driven optimization suggestions
+
+### Item Protection System (NEW)
+- **Player Detection**: Monitors nearby players and protects items
+- **Safe Food Consumption**: Only eats when safe from threats
+- **Protected Chests**: Secure storage for valuable items
+- **Mob Protection**: Prevents mobs from accessing stored food
+- **Combat Awareness**: Smart food consumption based on danger level
+
+### Advanced Crafting System (NEW)
+- **15+ New Recipes**: Beacon, anvil, brewing stand, enchantment table, and more
+- **Automation Components**: Hopper, blast furnace, smoker, composter
+- **Building Materials**: Fence, gates, ladders, scaffolding
+- **Enchanting Setup**: Bookshelves, lectern, grindstone, cartography table
+- **Smart Material Usage**: Automatically uses best available materials
 
 ### Advanced Intelligence System (NEW - "The Brain")
 - **Memory Systems**: Remembers resource locations, danger zones, and safe areas
@@ -144,6 +165,15 @@ The bot sends concise, professional notifications for important events:
 - Node.js 14.x or higher
 - A Minecraft Java Edition server (version 1.16+)
 - (Optional) Telegram Bot Token for notifications
+- (Optional) Google Gemini API Key for AI features (free tier available)
+
+## 📚 Documentation
+
+- **[AI Features Guide](AI_FEATURES.md)** - Comprehensive guide to Gemini AI, item protection, and advanced crafting
+- **[Quick Start Guide](QUICKSTART.md)** - Get started quickly
+- **[Customization Guide](CUSTOMIZATION.md)** - Customize bot behavior
+- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Examples](EXAMPLES.md)** - Usage examples and scenarios
 
 ## 🚀 Installation
 
@@ -198,6 +228,15 @@ The bot sends concise, professional notifications for important events:
 2. Get your bot token
 3. Get your chat ID by messaging [@userinfobot](https://t.me/userinfobot)
 4. Add both to your `.env` file
+
+### Google Gemini AI Setup (Optional - NEW)
+1. Visit [Google AI Studio](https://ai.google.dev/)
+2. Sign in with your Google account
+3. Create a free API key
+4. Add the key to your `.env` file as `GEMINI_API_KEY`
+5. The bot will automatically use AI features when configured
+
+See **[AI Features Guide](AI_FEATURES.md)** for detailed AI capabilities.
 
 ### Behavior Parameters
 - `MIN_HEALTH_PERCENT`: Health threshold for retreat (default: 60)
