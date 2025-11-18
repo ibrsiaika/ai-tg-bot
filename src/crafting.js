@@ -59,12 +59,13 @@ class CraftingSystem {
             return false;
         }
 
-        const recipe = this.bot.recipesFor(item.id, null, 1, null)[0];
-        if (!recipe) {
+        const recipes = this.bot.recipesFor(item.id, null, 1, null);
+        if (!recipes || recipes.length === 0) {
             console.log(`No recipe for ${itemName}`);
             return false;
         }
 
+        const recipe = recipes[0];
         try {
             await this.bot.craft(recipe, count, null);
             console.log(`Crafted ${count} ${itemName}`);

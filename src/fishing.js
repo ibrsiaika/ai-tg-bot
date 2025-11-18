@@ -49,13 +49,23 @@ class FishingSystem {
         }
         
         try {
-            const recipe = this.bot.recipesFor(this.bot.registry.itemsByName.fishing_rod.id)[0];
-            if (recipe) {
-                await this.bot.craft(recipe, 1, null);
-                console.log('Crafted fishing rod');
-                await this.notifier.send('🎣 Crafted fishing rod');
-                return true;
+            const rodItem = this.bot.registry.itemsByName.fishing_rod;
+            if (!rodItem) {
+                console.log('Fishing rod item not found in registry');
+                return false;
             }
+            
+            const recipes = this.bot.recipesFor(rodItem.id);
+            if (!recipes || recipes.length === 0) {
+                console.log('No recipe found for fishing rod');
+                return false;
+            }
+            
+            const recipe = recipes[0];
+            await this.bot.craft(recipe, 1, null);
+            console.log('Crafted fishing rod');
+            await this.notifier.send('🎣 Crafted fishing rod');
+            return true;
         } catch (error) {
             console.error('Error crafting fishing rod:', error.message);
         }
