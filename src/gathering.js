@@ -7,10 +7,30 @@ class ResourceGatherer {
         this.notifier = notifier;
         this.inventory = inventoryManager;
         this.exploration = null; // Will be set later
+        this.resourcePredictor = null; // Will be set later
     }
 
     setExplorationSystem(exploration) {
         this.exploration = exploration;
+    }
+
+    /**
+     * Set resource predictor for intelligent gathering
+     */
+    setResourcePredictor(resourcePredictor) {
+        this.resourcePredictor = resourcePredictor;
+        console.log('✓ Resource Predictor linked to gathering system');
+    }
+
+    /**
+     * Get next gathering priority from resource predictor
+     */
+    getNextPriority() {
+        if (!this.resourcePredictor) {
+            return null;
+        }
+        
+        return this.resourcePredictor.getNextGatheringTarget();
     }
 
     async collectWood(count = 20) {

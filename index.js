@@ -23,6 +23,9 @@ const FishingSystem = require('./src/fishing');
 const BackupSystem = require('./src/backup');
 const Utils = require('./src/utils');
 const CONSTANTS = require('./src/constants');
+const AdvancedPathfinding = require('./src/pathfinding');
+const MobThreatAI = require('./src/mobThreatAI');
+const ResourcePredictor = require('./src/resourcePredictor');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -193,6 +196,12 @@ class AutonomousMinecraftBot {
             this.config.telegramChatId
         );
 
+        // Initialize advanced pathfinding (PHASE 2)
+        this.systems.pathfinding = new AdvancedPathfinding(
+            this.bot,
+            this.systems.notifier
+        );
+
         // Initialize intelligence system (NEW - The Brain)
         this.systems.intelligence = new IntelligenceSystem(
             this.bot,
@@ -210,6 +219,13 @@ class AutonomousMinecraftBot {
         this.systems.inventory = new InventoryManager(
             this.bot,
             this.systems.notifier
+        );
+
+        // Initialize resource predictor (PHASE 2)
+        this.systems.resourcePredictor = new ResourcePredictor(
+            this.bot,
+            this.systems.notifier,
+            this.systems.inventory
         );
 
         // Initialize resource gathering
@@ -264,8 +280,18 @@ class AutonomousMinecraftBot {
             this.systems.safety
         );
 
+        // Initialize mob threat AI (PHASE 2)
+        this.systems.mobThreatAI = new MobThreatAI(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier
+        );
+
         // Start combat monitoring
         this.systems.combat.startCombatMonitoring();
+        
+        // Link Mob Threat AI to combat system
+        this.systems.combat.setMobThreatAI(this.systems.mobThreatAI);
 
         // Initialize farming system
         this.systems.farming = new FarmingSystem(
@@ -296,6 +322,9 @@ class AutonomousMinecraftBot {
 
         // Connect gathering system to exploration system
         this.systems.gathering.setExplorationSystem(this.systems.exploration);
+        
+        // Connect resource predictor to gathering system
+        this.systems.gathering.setResourcePredictor(this.systems.resourcePredictor);
 
         // Initialize advanced base system (NEW)
         this.systems.advancedBase = new AdvancedBaseSystem(
@@ -321,8 +350,8 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        console.log('✓ All systems initialized (16 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with advanced intelligence. Beginning autonomous operations.');
+        console.log('✓ All systems initialized (19 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 features: Advanced Pathfinding, Mob Threat AI, and Resource Prediction. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
