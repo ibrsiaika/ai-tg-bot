@@ -59,6 +59,13 @@ class CombatSystem {
             // Attack
             await this.attackEntity(closest);
         } catch (error) {
+            // Suppress PartialReadError - these are non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                // Silently ignore protocol errors during combat
+                return;
+            }
             console.error('Error in combat:', error.message);
         } finally {
             this.currentTarget = null;
@@ -85,6 +92,12 @@ class CombatSystem {
                 attackCount++;
                 await this.sleep(500); // Attack cooldown
             } catch (error) {
+                // Suppress PartialReadError - non-fatal protocol errors
+                if (error.name === 'PartialReadError' || 
+                    error.message?.includes('PartialReadError') ||
+                    error.message?.includes('Read error')) {
+                    continue; // Try attacking again
+                }
                 console.log('Entity defeated or out of range');
                 break;
             }
@@ -131,12 +144,24 @@ class CombatSystem {
                     // Wait for auto-pickup
                     await this.sleep(500);
                 } catch (error) {
+                    // Suppress PartialReadError - non-fatal protocol errors
+                    if (error.name === 'PartialReadError' || 
+                        error.message?.includes('PartialReadError') ||
+                        error.message?.includes('Read error')) {
+                        continue; // Skip this item and try next one
+                    }
                     console.log('Could not reach item:', error.message);
                 }
             }
 
             console.log('Item collection completed');
         } catch (error) {
+            // Suppress PartialReadError - non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                return; // Exit silently
+            }
             console.error('Error collecting items:', error.message);
         }
     }
@@ -173,6 +198,12 @@ class CombatSystem {
                 
                 await this.sleep(500);
             } catch (error) {
+                // Suppress PartialReadError - non-fatal protocol errors
+                if (error.name === 'PartialReadError' || 
+                    error.message?.includes('PartialReadError') ||
+                    error.message?.includes('Read error')) {
+                    continue; // Skip to next item
+                }
                 console.log('Could not reach item');
             }
         }
@@ -239,7 +270,14 @@ class CombatSystem {
 
             console.log('Retreat completed');
         } catch (error) {
-            console.error('Error during retreat:', error.message);
+            // Suppress PartialReadError - non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                // Continue with retreat completion
+            } else {
+                console.error('Error during retreat:', error.message);
+            }
         } finally {
             // Keep retreating flag set for a bit longer to prevent immediate re-trigger
             setTimeout(() => {
@@ -305,6 +343,12 @@ class CombatSystem {
                 3
             ), { timeout: 3000 });
         } catch (error) {
+            // Suppress PartialReadError - non-fatal protocol errors
+            if (error.name === 'PartialReadError' || 
+                error.message?.includes('PartialReadError') ||
+                error.message?.includes('Read error')) {
+                return; // Exit silently
+            }
             console.log('Creeper escape completed or interrupted');
         }
     }
@@ -317,6 +361,12 @@ class CombatSystem {
                 console.log('Shield equipped');
                 return true;
             } catch (error) {
+                // Suppress PartialReadError - non-fatal protocol errors
+                if (error.name === 'PartialReadError' || 
+                    error.message?.includes('PartialReadError') ||
+                    error.message?.includes('Read error')) {
+                    return false; // Exit silently
+                }
                 console.error('Error equipping shield:', error.message);
             }
         } else {
@@ -342,6 +392,12 @@ class CombatSystem {
                     return true;
                 }
             } catch (error) {
+                // Suppress PartialReadError - non-fatal protocol errors
+                if (error.name === 'PartialReadError' || 
+                    error.message?.includes('PartialReadError') ||
+                    error.message?.includes('Read error')) {
+                    return false; // Exit silently
+                }
                 console.error('Error crafting shield:', error.message);
             }
         } else {

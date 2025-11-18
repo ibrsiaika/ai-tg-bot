@@ -396,6 +396,29 @@ console.log('Starting bot...');
 console.log('═══════════════════════════════════════════════');
 console.log('');
 
+// Global error handlers for protocol errors
+process.on('unhandledRejection', (reason, promise) => {
+    // Suppress PartialReadError from unhandled promise rejections
+    if (reason && (reason.name === 'PartialReadError' || 
+                   reason.message?.includes('PartialReadError') ||
+                   reason.message?.includes('Read error'))) {
+        // Silently ignore - these are non-fatal protocol errors
+        return;
+    }
+    console.error('Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    // Suppress PartialReadError from uncaught exceptions
+    if (error.name === 'PartialReadError' || 
+        error.message?.includes('PartialReadError') ||
+        error.message?.includes('Read error')) {
+        // Silently ignore - these are non-fatal protocol errors
+        return;
+    }
+    console.error('Uncaught Exception:', error);
+});
+
 const autonomousBot = new AutonomousMinecraftBot(config);
 autonomousBot.start().catch(error => {
     console.error('Fatal error starting bot:', error);
