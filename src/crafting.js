@@ -194,8 +194,12 @@ class CraftingSystem {
             return false;
         }
         
-        // Upgrade diamond tools to netherite
-        const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword'];
+        // Netherite upgrade process
+        // Note: Smithing table upgrades require the mineflayer-smithing plugin
+        // Since this plugin may not be available, we provide a graceful fallback
+        // For production use, install: npm install mineflayer-smithing
+        
+        const toolTypes = ['pickaxe', 'axe', 'shovel', 'sword', 'helmet', 'chestplate', 'leggings', 'boots'];
         let upgraded = 0;
         
         for (const tool of toolTypes) {
@@ -204,11 +208,21 @@ class CraftingSystem {
             
             if (diamondTool && netheriteIngot) {
                 try {
-                    // Note: Smithing table upgrades would require mineflayer-smithing plugin
-                    // For now, just log the intention
-                    console.log(`Would upgrade diamond ${tool} to netherite (requires smithing plugin)`);
-                    // TODO: Implement actual smithing when plugin is available
-                    upgraded++;
+                    // Check if smithing plugin is available
+                    if (this.bot.smithing) {
+                        // Use plugin if available
+                        await this.bot.smithing.upgrade(diamondTool, netheriteIngot, smithingTable);
+                        console.log(`Upgraded diamond ${tool} to netherite`);
+                        upgraded++;
+                    } else {
+                        // Fallback: Manual smithing table interaction
+                        // This requires the smithing plugin or manual window handling
+                        console.log(`Smithing plugin not available. Cannot upgrade ${tool} automatically.`);
+                        console.log(`Install mineflayer-smithing: npm install mineflayer-smithing`);
+                        console.log(`Then add to bot: bot.loadPlugin(require('mineflayer-smithing').plugin)`);
+                        // Return false to indicate upgrade not possible without plugin
+                        return false;
+                    }
                 } catch (error) {
                     console.error(`Error upgrading ${tool} to netherite:`, error.message);
                 }

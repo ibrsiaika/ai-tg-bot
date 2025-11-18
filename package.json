@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0"
+    "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0",
+    "validate": "node -c index.js && node -c src/*.js && echo '✓ All files validated'",
+    "check-env": "node -e \"require('dotenv').config(); console.log('✓ Environment loaded'); console.log('Host:', process.env.MINECRAFT_HOST); console.log('Telegram:', process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'Not configured'); console.log('Gemini AI:', process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured');\""
   },
   "keywords": [
     "minecraft",
@@ -18,7 +20,9 @@
     "gemini",
     "protection",
     "optimization",
-    "hybrid-intelligence"
+    "hybrid-intelligence",
+    "self-healing",
+    "game-changer"
   ],
   "author": "",
   "license": "MIT",
