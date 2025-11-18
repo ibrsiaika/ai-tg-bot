@@ -30,6 +30,8 @@ const NetherNavigation = require('./src/netherNavigation');
 const EnchantingSystem = require('./src/enchanting');
 const AdvancedFarmSystem = require('./src/advancedFarming');
 const SortingSystem = require('./src/sorting');
+const PerformanceAnalytics = require('./src/analytics');
+const MultiGoalPlanner = require('./src/questPlanner');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -389,13 +391,33 @@ class AutonomousMinecraftBot {
             this.systems.inventory
         );
 
-        console.log('✓ All systems initialized (23 systems online)');
-        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2 & 3 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, and Sorting. Beginning autonomous operations.');
+        // Initialize performance analytics (PHASE 4)
+        this.systems.analytics = new PerformanceAnalytics(
+            this.bot,
+            this.systems.notifier,
+            this.systems
+        );
+
+        // Initialize multi-goal planner (PHASE 4)
+        this.systems.questPlanner = new MultiGoalPlanner(
+            this.bot,
+            this.systems.notifier,
+            this.systems
+        );
+
+        console.log('✓ All systems initialized (25 systems online)');
+        await this.systems.notifier.send('🤖 Enhanced AI systems online with Phase 2-4 features: Advanced Pathfinding, Mob Threat AI, Resource Prediction, Nether Navigation, Enchanting, Advanced Farming, Sorting, Performance Analytics, and Quest Planning. Beginning autonomous operations.');
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
         this.systems.intelligence.addLongTermGoal('Build starter base', 0.8, { shelter: true });
         this.systems.intelligence.addLongTermGoal('Obtain diamond tools', 0.7, { diamond: 3 });
+        
+        // Start quest chain
+        const recommendedChain = this.systems.questPlanner.recommendNextChain();
+        if (recommendedChain) {
+            this.systems.questPlanner.startQuestChain(recommendedChain);
+        }
         
         // Start automatic backups
         this.systems.backup.startAutomaticBackups();
