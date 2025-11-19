@@ -1,3 +1,5 @@
+const CONSTANTS = require('./constants');
+
 class BehaviorManager {
     constructor(bot, systems, notifier, safetyMonitor) {
         this.bot = bot;
@@ -1100,7 +1102,8 @@ Tools Upgraded: ${this.performanceMetrics.toolsUpgraded}`;
         const hostileMobs = Object.values(this.bot.entities).filter(entity => {
             if (!entity || !entity.position) return false;
             const distance = this.bot.entity.position.distanceTo(entity.position);
-            return entity.type === 'mob' && entity.mobType === 'Hostile' && distance < 16;
+            const mobName = entity.name?.toLowerCase();
+            return entity.type === 'mob' && mobName && CONSTANTS.HOSTILE_MOBS.includes(mobName) && distance < 16;
         });
         return hostileMobs.length;
     }
