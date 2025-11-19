@@ -183,6 +183,53 @@ class IntelligenceSystem {
     }
 
     /**
+     * Calculate confidence score for gathering a specific resource
+     * Used by AI Orchestrator to determine if we should consult AI
+     */
+    getConfidence(resourceType) {
+        if (!resourceType) {
+            return this.NEUTRAL_CONFIDENCE_SCORE;
+        }
+        
+        let confidence = this.NEUTRAL_CONFIDENCE_SCORE;
+        
+        // Factor 1: Do we know where to find this resource? (40% weight)
+        const knownLocations = this.worldKnowledge.resourceLocations.get(resourceType);
+        if (knownLocations && knownLocations.length > 0) {
+            // More known locations = higher confidence
+            const locationFactor = Math.min(knownLocations.length / 10, 1.0);
+            confidence += locationFactor * 0.4;
+        } else {
+            // No known locations reduces confidence
+            confidence -= 0.2;
+        }
+        
+        // Factor 2: Success rate of gathering this resource (40% weight)
+        const gatherActionName = `gather_${resourceType}`;
+        const actionConfidence = this.getActionConfidence(gatherActionName);
+        if (actionConfidence !== this.NEUTRAL_CONFIDENCE_SCORE) {
+            // We have experience with this resource
+            confidence += (actionConfidence - this.NEUTRAL_CONFIDENCE_SCORE) * 0.4;
+        }
+        
+        // Factor 3: How much we need it affects confidence (20% weight)
+        const resourceData = this.resourceNeeds[resourceType];
+        if (resourceData) {
+            const needRatio = resourceData.current / resourceData.targetMin;
+            if (needRatio < 0.5) {
+                // We really need it, but low stock means lower confidence we can get it easily
+                confidence -= 0.1;
+            } else if (needRatio > 1.5) {
+                // We have plenty, high confidence we can get more
+                confidence += 0.1;
+            }
+        }
+        
+        // Ensure confidence is in valid range [0, 1]
+        return Math.max(0, Math.min(1.0, confidence));
+    }
+
+    /**
      * Assess risk of a proposed action
      */
     assessRisk(actionType, targetPosition) {
