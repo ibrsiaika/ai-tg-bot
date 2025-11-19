@@ -474,6 +474,80 @@ class BuildingSystem {
         return false;
     }
 
+    async placeTorchesNearby() {
+        console.log('Placing torches nearby for lighting');
+        
+        const torch = await this.inventory.findItem('torch');
+        if (!torch) {
+            console.log('No torches available');
+            return false;
+        }
+
+        const botPos = this.bot.entity.position;
+        const radius = 10;
+        const spacing = 5;
+
+        await this.bot.equip(torch, 'hand');
+
+        // Place torches in a grid around the bot
+        for (let x = -radius; x <= radius; x += spacing) {
+            for (let z = -radius; z <= radius; z += spacing) {
+                const pos = botPos.offset(x, 0, z);
+                const blockBelow = this.bot.blockAt(pos.offset(0, -1, 0));
+                
+                if (blockBelow && blockBelow.name !== 'air') {
+                    try {
+                        await this.bot.placeBlock(blockBelow, new Vec3(0, 1, 0));
+                        await this.sleep(200);
+                    } catch (error) {
+                        // Continue if placement fails
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    async continueCurrentProject() {
+        console.log('Continuing current building project');
+        
+        // Check if we have a base position to work with
+        const botPos = this.bot.entity.position;
+        
+        // For now, just perform basic maintenance tasks
+        const torch = await this.inventory.findItem('torch');
+        if (torch) {
+            await this.placeTorchesNearby();
+        }
+        
+        return true;
+    }
+
+    async buildStructure(structure) {
+        console.log(`Building structure: ${structure}`);
+        
+        const botPos = this.bot.entity.position;
+        
+        // Build different structures based on the request
+        switch (structure) {
+            case 'base':
+                await this.buildStarterBase(botPos);
+                break;
+            case 'farm':
+                await this.buildFarm(botPos.offset(15, 0, 0), 9, 9);
+                break;
+            case 'storage':
+                await this.buildStorageRoom(botPos.offset(-15, 0, 0));
+                break;
+            default:
+                console.log(`Unknown structure type: ${structure}`);
+                return false;
+        }
+        
+        return true;
+    }
+
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }

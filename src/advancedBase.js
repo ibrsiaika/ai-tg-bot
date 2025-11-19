@@ -520,6 +520,48 @@ class AdvancedBaseSystem {
         return this.baseLevel;
     }
 
+    async buildNextStructure() {
+        console.log('Building next structure in base progression');
+        
+        const botPos = this.bot.entity.position;
+        
+        // Build structures based on current base level
+        switch (this.baseLevel) {
+            case 0:
+                // First structure: basic storage
+                console.log('Building initial storage room');
+                await this.buildStorageRoom(botPos);
+                this.baseLevel = 1;
+                break;
+            case 1:
+                // Second structure: crafting area
+                console.log('Building crafting area');
+                await this.buildCraftingArea(botPos.offset(5, 0, 0));
+                this.baseLevel = 2;
+                break;
+            case 2:
+                // Third structure: smelting room
+                console.log('Building smelting room');
+                await this.buildSmeltingRoom(botPos.offset(-5, 0, 0));
+                this.baseLevel = 3;
+                break;
+            case 3:
+                // Fourth structure: bedroom
+                console.log('Building bedroom');
+                await this.buildBedroom(botPos.offset(0, 0, 5));
+                this.baseLevel = 4;
+                break;
+            default:
+                // Advanced structures: upgrade existing base or add defenses
+                console.log('Upgrading existing base structures');
+                await this.upgradeBase();
+                break;
+        }
+        
+        await this.notifier.send(`Structure complete! Base level: ${this.baseLevel}`);
+        return true;
+    }
+
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
