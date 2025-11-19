@@ -539,6 +539,51 @@ class MiningSystem {
         return false;
     }
 
+    /**
+     * Mine at a specific depth level
+     * @param {number} depth - Y coordinate to mine at (default: 12)
+     */
+    async mineAtDepth(depth = 12) {
+        console.log(`Mining at depth Y=${depth}`);
+        await this.branchMine(depth, 50);
+    }
+
+    /**
+     * Continue current mining operation
+     * Resumes or continues branch mining at current location
+     */
+    async continueMining() {
+        console.log('Continuing mining operation');
+        const currentDepth = Math.floor(this.bot.entity.position.y);
+        await this.branchMine(currentDepth, 30);
+    }
+
+    /**
+     * Mine a specific ore/resource
+     * @param {string} resource - Name of the resource to mine (e.g., 'diamond', 'iron')
+     */
+    async mineOre(resource) {
+        console.log(`Mining for ${resource}`);
+        
+        // Find the ore block nearby
+        const oreBlock = this.bot.findBlock({
+            matching: (block) => {
+                const oreName = resource.toLowerCase();
+                return block.name.includes(oreName) && block.name.includes('ore');
+            },
+            maxDistance: 32
+        });
+
+        if (oreBlock) {
+            console.log(`Found ${resource} ore at ${oreBlock.position}`);
+            await this.mineOreVein(oreBlock);
+        } else {
+            console.log(`No ${resource} ore found nearby, starting exploration mining`);
+            // Default to branch mining to find the ore
+            await this.branchMine(12, 50);
+        }
+    }
+
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
