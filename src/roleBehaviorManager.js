@@ -311,9 +311,10 @@ class RoleBehaviorManager {
         const hostile = [];
         try {
             for (const entity of Object.values(this.bot.entities)) {
-                if (entity.type === 'mob' && entity.mobType) {
+                if (entity.type === 'mob' && entity.displayName) {
                     const hostileMobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman'];
-                    if (hostileMobs.includes(entity.mobType)) {
+                    const entityName = entity.displayName.toLowerCase();
+                    if (hostileMobs.some(mob => entityName.includes(mob))) {
                         const distance = this.bot.entity.position.distanceTo(entity.position);
                         if (distance < this.behaviorSettings.combatRange) {
                             hostile.push(entity);
