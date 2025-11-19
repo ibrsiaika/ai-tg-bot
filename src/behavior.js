@@ -82,6 +82,14 @@ class BehaviorManager {
         setInterval(async () => {
             await this.reportActivitySummary();
         }, REPORT_INTERVAL);
+        
+        // Also start periodic tool durability checks (every 5 minutes)
+        const TOOL_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        setInterval(() => {
+            if (this.systems.toolDurability) {
+                this.systems.toolDurability.displayToolReport();
+            }
+        }, TOOL_CHECK_INTERVAL);
     }
     
     /**

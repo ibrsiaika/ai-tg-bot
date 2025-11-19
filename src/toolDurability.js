@@ -26,7 +26,7 @@ class ToolDurabilityManager {
     }
 
     /**
-     * Check durability of currently equipped tool
+     * Check durability of currently equipped tool with enhanced visual feedback
      */
     checkEquippedTool() {
         const heldItem = this.bot.heldItem;
@@ -36,17 +36,40 @@ class ToolDurabilityManager {
         if (heldItem.maxDurability === null) return null;
         
         const durabilityPercent = (heldItem.maxDurability - heldItem.durabilityUsed) / heldItem.maxDurability;
+        const durabilityUsesLeft = heldItem.maxDurability - heldItem.durabilityUsed;
+        
+        // Color-coded status
+        let status = this.getDurabilityStatus(durabilityPercent);
         
         return {
             item: heldItem,
             durabilityPercent: durabilityPercent,
+            durabilityUsesLeft: durabilityUsesLeft,
+            status: status,
             needsReplacement: durabilityPercent < this.replaceThreshold,
             needsWarning: durabilityPercent < this.warnThreshold
         };
     }
+    
+    /**
+     * Get color-coded durability status with emoji
+     */
+    getDurabilityStatus(percent) {
+        if (percent > 0.75) {
+            return { emoji: '✅', color: 'green', text: 'Excellent' };
+        } else if (percent > 0.5) {
+            return { emoji: '🟢', color: 'green', text: 'Good' };
+        } else if (percent > 0.3) {
+            return { emoji: '🟡', color: 'yellow', text: 'Fair' };
+        } else if (percent > 0.15) {
+            return { emoji: '🟠', color: 'orange', text: 'Low' };
+        } else {
+            return { emoji: '🔴', color: 'red', text: 'Critical' };
+        }
+    }
 
     /**
-     * Check all tools in inventory
+     * Check all tools in inventory with enhanced reporting
      */
     checkAllTools() {
         const tools = this.bot.inventory.items().filter(item => 
@@ -63,16 +86,43 @@ class ToolDurabilityManager {
             if (tool.maxDurability === null) continue;
             
             const durabilityPercent = (tool.maxDurability - tool.durabilityUsed) / tool.maxDurability;
+            const usesLeft = tool.maxDurability - tool.durabilityUsed;
+            const status = this.getDurabilityStatus(durabilityPercent);
             
             report.push({
                 name: tool.name,
                 durabilityPercent: durabilityPercent,
+                usesLeft: usesLeft,
+                status: status,
                 needsReplacement: durabilityPercent < this.replaceThreshold,
                 needsWarning: durabilityPercent < this.warnThreshold
             });
         }
         
         return report;
+    }
+    
+    /**
+     * Display tool durability report with visual indicators
+     */
+    displayToolReport() {
+        const report = this.checkAllTools();
+        
+        if (report.length === 0) {
+            console.log('📦 No tools in inventory');
+            return;
+        }
+        
+        console.log('\n🔧 === Tool Durability Report ===');
+        for (const tool of report) {
+            const percentStr = (tool.durabilityPercent * 100).toFixed(1);
+            console.log(`${tool.status.emoji} ${tool.name}: ${percentStr}% (${tool.usesLeft} uses left) - ${tool.status.text}`);
+            
+            if (tool.needsReplacement) {
+                console.log(`   ⚠️  REPLACE SOON!`);
+            }
+        }
+        console.log('================================\n');
     }
 
     /**
