@@ -14,6 +14,7 @@ class GeminiAI {
         this.conversationHistory = [];
         this.maxHistoryLength = 10;
         this.isEnabled = false;
+        this.enableConsoleLogging = true; // Enable prompt/response logging
         
         // Initialize if API key is provided
         if (this.apiKey && this.apiKey.trim() !== '') {
@@ -51,9 +52,16 @@ class GeminiAI {
 
         try {
             const prompt = this.buildDecisionPrompt(gameState);
+            
+            // Log sent prompt
+            this.logPrompt('Decision Request', prompt);
+            
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
+            
+            // Log received response
+            this.logResponse('Decision Response', text);
             
             // Parse AI response
             const decision = this.parseAIResponse(text);
@@ -91,9 +99,13 @@ ${JSON.stringify(needs, null, 2)}
 Provide a prioritized list of 3-5 items to craft. Format your response as a JSON array of objects with 'item' and 'reason' fields.
 Only suggest items that can be crafted with available resources. Be concise and practical.`;
 
+            this.logPrompt('Crafting Suggestions', prompt);
+            
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
+            
+            this.logResponse('Crafting Suggestions', text);
             
             // Try to parse JSON from response
             const suggestions = this.extractJSONFromText(text);
@@ -131,9 +143,13 @@ Respond with a JSON object containing:
 
 Only suggest ONE thing. Be specific and practical.`;
 
+            this.logPrompt('Building Advice', prompt);
+            
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
+            
+            this.logResponse('Building Advice', text);
             
             const advice = this.extractJSONFromText(text);
             
@@ -163,9 +179,13 @@ ${JSON.stringify(dangerState, null, 2)}
 Respond with ONLY ONE WORD from: retreat, fight, hide, eat, heal, escape
 Be decisive and quick.`;
 
+            this.logPrompt('Danger Response', prompt);
+            
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
             const text = response.text().trim().toLowerCase();
+            
+            this.logResponse('Danger Response', text);
             
             // Validate response
             const validActions = ['retreat', 'fight', 'hide', 'eat', 'heal', 'escape'];
@@ -293,9 +313,13 @@ ${JSON.stringify(metrics, null, 2)}
 
 Provide concise, actionable suggestions to improve efficiency.`;
 
+            this.logPrompt('Performance Analysis', prompt);
+            
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
+            
+            this.logResponse('Performance Analysis', text);
             
             return text.trim();
         } catch (error) {
@@ -309,6 +333,45 @@ Provide concise, actionable suggestions to improve efficiency.`;
      */
     clearHistory() {
         this.conversationHistory = [];
+    }
+
+    /**
+     * Log AI prompt to console
+     * @param {string} type - Type of prompt
+     * @param {string} prompt - The prompt text
+     */
+    logPrompt(type, prompt) {
+        if (!this.enableConsoleLogging) return;
+        
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`🤖 AI PROMPT SENT [${type}]`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(prompt);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    }
+
+    /**
+     * Log AI response to console
+     * @param {string} type - Type of response
+     * @param {string} response - The response text
+     */
+    logResponse(type, response) {
+        if (!this.enableConsoleLogging) return;
+        
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`✨ AI RESPONSE RECEIVED [${type}]`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(response);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    }
+
+    /**
+     * Enable or disable console logging
+     * @param {boolean} enabled - Whether to log to console
+     */
+    setConsoleLogging(enabled) {
+        this.enableConsoleLogging = enabled;
+        console.log(`AI console logging ${enabled ? 'enabled' : 'disabled'}`);
     }
 }
 

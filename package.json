@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "team": "node index-team.js",
     "dev": "node index.js",
     "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0",
-    "validate": "node -c index.js && node -c src/*.js && echo '✓ All files validated'",
+    "validate": "node -c index.js && node -c index-team.js && node -c src/*.js && echo '✓ All files validated'",
     "check-env": "node -e \"require('dotenv').config(); console.log('✓ Environment loaded'); console.log('Host:', process.env.MINECRAFT_HOST); console.log('Telegram:', process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'Not configured'); console.log('Gemini AI:', process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured');\""
   },
   "keywords": [
