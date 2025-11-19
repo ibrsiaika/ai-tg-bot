@@ -20,7 +20,7 @@ class GeminiAI {
             try {
                 this.genAI = new GoogleGenerativeAI(this.apiKey);
                 // Use gemini-1.5-flash model (free tier)
-                this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
                 this.isEnabled = true;
                 console.log('✓ Gemini AI initialized with Flash model');
             } catch (error) {
