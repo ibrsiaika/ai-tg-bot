@@ -343,8 +343,8 @@ const config = {
     geminiApiKey: process.env.GEMINI_API_KEY
 };
 
-// Validate configuration
-const validation = Utils.validateConfig(config);
+// Validate configuration (skip username check for team mode - uses hardcoded bot names)
+const validation = Utils.validateConfig(config, true);
 if (!validation.valid) {
     console.error('═══════════════════════════════════════════════');
     console.error('  CONFIGURATION ERROR');

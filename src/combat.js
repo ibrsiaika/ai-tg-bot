@@ -51,7 +51,7 @@ class CombatSystem {
                     await this.retreat();
                 }
             }
-        }, 5000); // Check every 5 seconds (increased from 2)
+        }, 3000); // Check every 3 seconds for more responsive combat (changed from 5)
     }
 
     /**
@@ -64,7 +64,13 @@ class CombatSystem {
         }
 
         const target = situation.mostDangerous;
-        if (!target) return;
+        if (!target || !target.entity) return;
+
+        // Verify target is still valid
+        if (!target.entity.isValid) {
+            console.log('Target is no longer valid, skipping advanced combat');
+            return;
+        }
 
         console.log(`Engaging ${target.type} (danger score: ${target.dangerScore})`);
         
@@ -83,7 +89,7 @@ class CombatSystem {
                 target.position.y,
                 target.position.z,
                 2
-            ));
+            ), { timeout: 5000 }); // Add timeout to prevent getting stuck
 
             // Attack
             await this.attackEntity(target.entity);
@@ -101,6 +107,14 @@ class CombatSystem {
             // Suppress "goal was changed" errors - these occur when retreating during combat
             if (error.message?.includes('goal was changed')) {
                 // Silently ignore - expected when priorities shift
+                return;
+            }
+            // Suppress timeout errors
+            if (error.message?.includes('timeout')) {
+                console.log('Could not reach target in time');
+                if (this.mobThreatAI && target) {
+                    this.mobThreatAI.recordThreatEncounter(target, 'retreated');
+                }
                 return;
             }
             console.error('Error in advanced combat:', error.message);
@@ -132,6 +146,12 @@ class CombatSystem {
         const closest = this.findClosestThreat(threats);
         if (!closest) return;
 
+        // Verify threat is still valid before engaging
+        if (!closest.isValid) {
+            console.log('Target is no longer valid, skipping');
+            return;
+        }
+
         this.currentTarget = closest;
 
         try {
@@ -144,7 +164,7 @@ class CombatSystem {
                 closest.position.y,
                 closest.position.z,
                 combatDistance
-            ));
+            ), { timeout: 5000 }); // Add timeout to prevent getting stuck
 
             // Attack
             await this.attackEntity(closest);
@@ -161,6 +181,11 @@ class CombatSystem {
                 // Silently ignore - expected when priorities shift
                 return;
             }
+            // Suppress timeout errors - just means we took too long to reach target
+            if (error.message?.includes('timeout')) {
+                console.log('Could not reach target in time, continuing');
+                return;
+            }
             console.error('Error in combat:', error.message);
         } finally {
             this.currentTarget = null;
@@ -173,13 +198,41 @@ class CombatSystem {
         const entityPosition = entity.position.clone(); // Remember position for loot collection
         let attackCount = 0;
         const maxAttacks = 20;
+        const attackRange = 4; // Maximum attack range
 
         while (entity.isValid && attackCount < maxAttacks) {
+            // Check if entity is still alive (has health property)
+            if (entity.health !== undefined && entity.health <= 0) {
+                console.log('Entity defeated');
+                break;
+            }
+
             // Check if we should retreat
             if (!this.safety.isSafe() && this.canRetreat()) {
                 console.log('Health too low, retreating');
                 await this.retreat();
                 return;
+            }
+
+            // Verify entity is still in range
+            const distance = this.bot.entity.position.distanceTo(entity.position);
+            if (distance > attackRange) {
+                console.log(`Entity out of range (${distance.toFixed(1)} blocks), moving closer`);
+                try {
+                    await this.bot.pathfinder.goto(new goals.GoalNear(
+                        entity.position.x,
+                        entity.position.y,
+                        entity.position.z,
+                        2
+                    ), { timeout: 2000 });
+                } catch (error) {
+                    // If can't reach, stop attacking
+                    if (!error.message?.includes('goal was changed')) {
+                        console.log('Cannot reach entity, ending combat');
+                        break;
+                    }
+                }
+                continue; // Try again after moving
             }
 
             try {
@@ -201,7 +254,7 @@ class CombatSystem {
         console.log(`Combat ended after ${attackCount} attacks`);
         
         // Collect dropped items after defeating the mob
-        if (!entity.isValid) {
+        if (!entity.isValid || (entity.health !== undefined && entity.health <= 0)) {
             await this.collectNearbyItems(entityPosition);
         }
     }
@@ -357,7 +410,7 @@ class CombatSystem {
                     escapePos.y,
                     escapePos.z,
                     5
-                ));
+                ), { timeout: 8000 }); // Add timeout to prevent getting stuck during retreat
             }
 
             // Heal if possible
@@ -370,6 +423,8 @@ class CombatSystem {
                 error.message?.includes('PartialReadError') ||
                 error.message?.includes('Read error')) {
                 // Continue with retreat completion
+            } else if (error.message?.includes('timeout')) {
+                console.log('Retreat timeout - continuing anyway');
             } else {
                 console.error('Error during retreat:', error.message);
             }

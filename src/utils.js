@@ -82,7 +82,7 @@ class Utils {
      * @param {Object} config - Configuration to validate
      * @returns {Object} Validation result {valid: boolean, errors: string[]}
      */
-    static validateConfig(config) {
+    static validateConfig(config, skipUsernameCheck = false) {
         const errors = [];
 
         if (!config.host || typeof config.host !== 'string') {
@@ -93,8 +93,11 @@ class Utils {
             errors.push('Invalid or missing port (must be 1-65535)');
         }
 
-        if (!config.username || typeof config.username !== 'string' || config.username.length < 3) {
-            errors.push('Invalid or missing username (must be at least 3 characters)');
+        // Skip username validation for team mode (uses hardcoded bot names)
+        if (!skipUsernameCheck) {
+            if (!config.username || typeof config.username !== 'string' || config.username.length < 3) {
+                errors.push('Invalid or missing username (must be at least 3 characters)');
+            }
         }
 
         if (config.minHealthPercent && (config.minHealthPercent < 0 || config.minHealthPercent > 100)) {
