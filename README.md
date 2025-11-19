@@ -217,6 +217,8 @@ The bot sends concise, professional notifications for important events:
 ## 📚 Documentation
 
 - **[Team System Guide](TEAM_GUIDE.md)** - Multi-bot team coordination and specialized roles (NEW!)
+- **[Combat Improvements](COMBAT_IMPROVEMENTS.md)** - Enhanced combat system documentation (NEW!)
+- **[Configuration Update Guide](CONFIG_UPDATE_GUIDE.md)** - Configuration fixes and setup help (NEW!)
 - **[AI Features Guide](AI_FEATURES.md)** - Comprehensive guide to Gemini AI, item protection, and advanced crafting
 - **[Quick Start Guide](QUICKSTART.md)** - Get started quickly
 - **[Customization Guide](CUSTOMIZATION.md)** - Customize bot behavior
