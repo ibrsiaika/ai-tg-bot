@@ -50,6 +50,13 @@ class RoleBehaviorManager {
     async behaviorLoop() {
         while (this.isActive) {
             try {
+                // Check if bot is still connected
+                if (!this.bot || !this.bot.entity) {
+                    console.log(`[${this.role}] Bot disconnected, stopping behavior loop`);
+                    this.isActive = false;
+                    break;
+                }
+                
                 // Update team coordinator with current status
                 this.updateTeamStatus();
                 
@@ -63,9 +70,21 @@ class RoleBehaviorManager {
                 await this.sleep(2000); // 2 second delay
             } catch (error) {
                 console.error(`Error in ${this.role} behavior loop:`, error.message);
+                
+                // If error is critical, stop the loop
+                if (error.message?.includes('bot is not connected') || 
+                    error.message?.includes('Cannot read') ||
+                    !this.bot) {
+                    console.log(`[${this.role}] Critical error, stopping behavior loop`);
+                    this.isActive = false;
+                    break;
+                }
+                
                 await this.sleep(5000); // Longer delay on error
             }
         }
+        
+        console.log(`[${this.role}] Behavior loop ended`);
     }
     
     /**
@@ -285,17 +304,25 @@ class RoleBehaviorManager {
     // Helper methods for specific tasks
     
     getNearbyThreats() {
+        if (!this.bot || !this.bot.entities || !this.bot.entity) {
+            return [];
+        }
+        
         const hostile = [];
-        for (const entity of Object.values(this.bot.entities)) {
-            if (entity.type === 'mob' && entity.mobType) {
-                const hostileMobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman'];
-                if (hostileMobs.includes(entity.mobType)) {
-                    const distance = this.bot.entity.position.distanceTo(entity.position);
-                    if (distance < this.behaviorSettings.combatRange) {
-                        hostile.push(entity);
+        try {
+            for (const entity of Object.values(this.bot.entities)) {
+                if (entity.type === 'mob' && entity.mobType) {
+                    const hostileMobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman'];
+                    if (hostileMobs.includes(entity.mobType)) {
+                        const distance = this.bot.entity.position.distanceTo(entity.position);
+                        if (distance < this.behaviorSettings.combatRange) {
+                            hostile.push(entity);
+                        }
                     }
                 }
             }
+        } catch (error) {
+            console.error(`[${this.role}] Error checking threats:`, error.message);
         }
         return hostile;
     }
@@ -313,19 +340,23 @@ class RoleBehaviorManager {
     
     async patrolBase() {
         const baseLocation = this.teamCoordinator.sharedResources.baseLocation;
-        if (!baseLocation) return;
+        if (!baseLocation || !this.bot || !this.bot.entity) return;
         
-        // Simple patrol pattern around base
-        const radius = this.behaviorSettings.patrolRadius;
-        const angle = (Date.now() / 10000) % (Math.PI * 2);
-        const patrolPoint = baseLocation.offset(
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius
-        );
-        
-        if (this.systems.pathfinding) {
-            await this.systems.pathfinding.navigateToPosition(patrolPoint);
+        try {
+            // Simple patrol pattern around base
+            const radius = this.behaviorSettings.patrolRadius;
+            const angle = (Date.now() / 10000) % (Math.PI * 2);
+            const patrolPoint = baseLocation.offset(
+                Math.cos(angle) * radius,
+                0,
+                Math.sin(angle) * radius
+            );
+            
+            if (this.systems.pathfinding) {
+                await this.systems.pathfinding.navigateToPosition(patrolPoint);
+            }
+        } catch (error) {
+            console.error(`[${this.role}] Error during patrol:`, error.message);
         }
     }
     

@@ -57,6 +57,12 @@ class GeminiAI {
             this.logPrompt('Decision Request', prompt);
             
             const result = await this.model.generateContent(prompt);
+            
+            if (!result || !result.response) {
+                console.error('AI decision: No response from model');
+                return null;
+            }
+            
             const response = await result.response;
             const text = response.text();
             
@@ -72,6 +78,17 @@ class GeminiAI {
             return decision;
         } catch (error) {
             console.error('Error getting AI decision:', error.message);
+            
+            // Disable AI temporarily if quota exceeded
+            if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+                console.warn('AI quota exceeded - temporarily disabling AI calls');
+                this.isEnabled = false;
+                setTimeout(() => {
+                    this.isEnabled = true;
+                    console.log('AI re-enabled after quota cooldown');
+                }, 60000); // Re-enable after 1 minute
+            }
+            
             return null;
         }
     }
@@ -102,6 +119,12 @@ Only suggest items that can be crafted with available resources. Be concise and 
             this.logPrompt('Crafting Suggestions', prompt);
             
             const result = await this.model.generateContent(prompt);
+            
+            if (!result || !result.response) {
+                console.error('AI crafting: No response from model');
+                return [];
+            }
+            
             const response = await result.response;
             const text = response.text();
             

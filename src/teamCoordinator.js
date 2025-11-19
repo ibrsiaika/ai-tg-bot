@@ -38,7 +38,60 @@ class TeamCoordinator {
         this.HELP_DISTANCE_THRESHOLD = 50; // Max distance to help another bot
         this.RESOURCE_SHARE_THRESHOLD = 0.7; // Share when inventory is 70% full
         
+        // Cleanup timer for old data
+        this.cleanupInterval = null;
+        
         console.log('✓ Team Coordinator initialized');
+    }
+    
+    /**
+     * Start automatic cleanup of old data
+     */
+    startCleanup() {
+        // Run cleanup every 5 minutes
+        this.cleanupInterval = setInterval(() => {
+            this.cleanup();
+        }, 300000); // 5 minutes
+    }
+    
+    /**
+     * Clean up old requests and messages
+     */
+    cleanup() {
+        const now = Date.now();
+        const ONE_HOUR = 3600000;
+        
+        // Remove requests older than 1 hour that are completed/rejected
+        for (const [id, request] of this.requests.entries()) {
+            if ((request.status === 'completed' || request.status === 'rejected') &&
+                (now - request.timestamp) > ONE_HOUR) {
+                this.requests.delete(id);
+            }
+        }
+        
+        // Keep only last 50 messages
+        if (this.messages.length > 50) {
+            this.messages = this.messages.slice(-50);
+        }
+        
+        console.log('[TEAM] Cleanup completed - old data removed');
+    }
+    
+    /**
+     * Stop cleanup and clear resources
+     */
+    shutdown() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        this.bots.clear();
+        this.roles.clear();
+        this.messages = [];
+        this.requests.clear();
+        
+        console.log('[TEAM] Coordinator shutdown complete');
     }
     
     /**
@@ -111,12 +164,12 @@ class TeamCoordinator {
         
         this.messages.push(message);
         
-        // Keep only last 100 messages
-        if (this.messages.length > 100) {
-            this.messages = this.messages.slice(-100);
+        // Keep only last 50 messages to prevent memory leak
+        if (this.messages.length > 50) {
+            this.messages.shift(); // Remove oldest message
         }
         
-        console.log(`[TEAM] ${from} -> ALL: ${type}`, data);
+        console.log(`[TEAM] ${from} -> ALL: ${type}`);
     }
     
     /**
@@ -148,6 +201,16 @@ class TeamCoordinator {
         
         this.requests.set(requestId, request);
         console.log(`[TEAM] Request #${requestId}: ${fromId} -> ${toRole}: ${type}`);
+        
+        // Clean old completed requests to prevent memory leak (keep last 100)
+        if (this.requests.size > 100) {
+            const oldRequests = Array.from(this.requests.entries())
+                .filter(([_, req]) => req.status === 'completed' || req.status === 'rejected')
+                .sort((a, b) => a[1].timestamp - b[1].timestamp);
+            
+            // Remove oldest 20 completed/rejected requests
+            oldRequests.slice(0, 20).forEach(([id]) => this.requests.delete(id));
+        }
         
         return requestId;
     }

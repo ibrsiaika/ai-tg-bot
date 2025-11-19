@@ -38,6 +38,7 @@ class MultiBotTeam {
         this.notifier = null;
         this.teamCoordinator = null;
         this.baseLocation = null;
+        this.reportingInterval = null; // Store interval for cleanup
     }
 
     async start() {
@@ -55,6 +56,9 @@ class MultiBotTeam {
 
         // Initialize team coordinator
         this.teamCoordinator = new TeamCoordinator(this.notifier);
+        
+        // Start automatic cleanup
+        this.teamCoordinator.startCleanup();
 
         // Create three specialized bots
         await this.createBot('defender', 'DefenderBot');
@@ -147,6 +151,7 @@ class MultiBotTeam {
 
         bot.on('kicked', (reason) => {
             console.log(`[${role}] Bot was kicked:`, reason);
+            this.notifier.send(`⚠️ ${role.toUpperCase()} bot was kicked: ${reason}`);
         });
 
         bot.on('death', () => {
@@ -156,6 +161,12 @@ class MultiBotTeam {
 
         bot.on('end', () => {
             console.log(`[${role}] Bot disconnected`);
+            
+            // Stop behavior manager for this bot
+            const botData = Array.from(this.bots.values()).find(b => b.bot === bot);
+            if (botData && botData.behaviorManager) {
+                botData.behaviorManager.stop();
+            }
         });
     }
 
@@ -259,19 +270,23 @@ class MultiBotTeam {
 
     startTeamReporting() {
         // Generate team status report every 10 minutes
-        setInterval(() => {
-            const report = this.teamCoordinator.generateReport();
-            console.log('\n' + report);
-            
-            // Send summary to Telegram
-            const status = this.teamCoordinator.getTeamStatus();
-            const summary = `📊 TEAM STATUS UPDATE\n\n` +
-                `Defender: ${status.defender.active ? '🟢' : '🔴'} HP:${status.defender.health}\n` +
-                `Builder: ${status.builder.active ? '🟢' : '🔴'} HP:${status.builder.health}\n` +
-                `Miner: ${status.miner.active ? '🟢' : '🔴'} HP:${status.miner.health}\n\n` +
-                `Active Requests: ${status.activeRequests}`;
-            
-            this.notifier.send(summary);
+        this.reportingInterval = setInterval(async () => {
+            try {
+                const report = this.teamCoordinator.generateReport();
+                console.log('\n' + report);
+                
+                // Send summary to Telegram
+                const status = this.teamCoordinator.getTeamStatus();
+                const summary = `📊 TEAM STATUS UPDATE\n\n` +
+                    `Defender: ${status.defender.active ? '🟢' : '🔴'} HP:${status.defender.health}\n` +
+                    `Builder: ${status.builder.active ? '🟢' : '🔴'} HP:${status.builder.health}\n` +
+                    `Miner: ${status.miner.active ? '🟢' : '🔴'} HP:${status.miner.health}\n\n` +
+                    `Active Requests: ${status.activeRequests}`;
+                
+                await this.notifier.send(summary);
+            } catch (error) {
+                console.error('Error generating team report:', error.message);
+            }
         }, 600000); // 10 minutes
     }
 
@@ -282,13 +297,38 @@ class MultiBotTeam {
     async shutdown() {
         console.log('\nShutting down team...');
         
-        for (const [username, botData] of this.bots.entries()) {
-            console.log(`Stopping ${username}...`);
-            botData.behaviorManager.stop();
-            botData.bot.quit();
+        // Stop reporting interval
+        if (this.reportingInterval) {
+            clearInterval(this.reportingInterval);
+            this.reportingInterval = null;
         }
         
-        await this.notifier.send('🛑 Team system shutting down...');
+        // Stop all bots
+        for (const [username, botData] of this.bots.entries()) {
+            console.log(`Stopping ${username}...`);
+            
+            if (botData.behaviorManager) {
+                botData.behaviorManager.stop();
+            }
+            
+            if (botData.bot) {
+                try {
+                    botData.bot.quit();
+                } catch (error) {
+                    console.error(`Error stopping ${username}:`, error.message);
+                }
+            }
+        }
+        
+        // Clear bots map
+        this.bots.clear();
+        
+        // Shutdown team coordinator
+        if (this.teamCoordinator) {
+            this.teamCoordinator.shutdown();
+        }
+        
+        await this.notifier.send('🛑 Team system shutdown complete');
         console.log('Team shutdown complete');
     }
 }
