@@ -399,6 +399,16 @@ class PerformanceAnalytics {
             snapshots: this.hourlySnapshots.length
         };
     }
+    
+    /**
+     * Get metrics for optimization manager
+     */
+    getMetrics() {
+        const totalResources = Object.values(this.metrics.resources).reduce((a, b) => a + b, 0);
+        return {
+            resourcesGathered: totalResources
+        };
+    }
 }
 
 module.exports = PerformanceAnalytics;
