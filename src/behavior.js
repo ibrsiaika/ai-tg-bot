@@ -65,8 +65,54 @@ class BehaviorManager {
         
         await this.notifier.notifyStatus('Bot activated - autonomous mode');
         
+        // Start periodic activity summary reporting
+        this.startActivityReporting();
+        
         // Start autonomous decision loop
         this.autonomousLoop();
+    }
+    
+    /**
+     * Starts periodic activity summary reporting
+     * Reports bot activity every 15 minutes
+     */
+    startActivityReporting() {
+        const REPORT_INTERVAL = 15 * 60 * 1000; // 15 minutes
+        
+        setInterval(async () => {
+            await this.reportActivitySummary();
+        }, REPORT_INTERVAL);
+    }
+    
+    /**
+     * Reports a summary of recent bot activities
+     */
+    async reportActivitySummary() {
+        const inventory = this.bot.inventory.items();
+        const pos = this.bot.entity.position;
+        
+        // Count key resources
+        const resources = {
+            wood: inventory.filter(i => i.name.includes('log')).reduce((sum, item) => sum + item.count, 0),
+            stone: inventory.filter(i => i.name.includes('stone') || i.name.includes('cobblestone')).reduce((sum, item) => sum + item.count, 0),
+            coal: inventory.filter(i => i.name === 'coal').reduce((sum, item) => sum + item.count, 0),
+            iron: inventory.filter(i => i.name === 'iron_ingot' || i.name === 'raw_iron').reduce((sum, item) => sum + item.count, 0),
+            diamond: inventory.filter(i => i.name === 'diamond').reduce((sum, item) => sum + item.count, 0),
+            food: inventory.filter(i => i.name.includes('beef') || i.name.includes('porkchop') || i.name.includes('bread') || i.name.includes('carrot')).reduce((sum, item) => sum + item.count, 0)
+        };
+        
+        const summary = `📊 Activity Summary:
+🎯 Position: Y=${Math.floor(pos.y)}
+💚 Health: ${this.bot.health}/20 | Food: ${this.bot.food}/20
+📦 Resources: Wood:${resources.wood} Stone:${resources.stone} Coal:${resources.coal} Iron:${resources.iron} Diamond:${resources.diamond}
+🍖 Food: ${resources.food} items`;
+        
+        console.log('\n' + summary);
+        
+        // Only send to telegram if configured and we have meaningful activity
+        if (resources.diamond > 0 || resources.iron > 10 || this.bot.health < 15) {
+            await this.notifier.send(summary);
+        }
     }
 
     async autonomousLoop() {
@@ -149,6 +195,25 @@ class BehaviorManager {
                 expectedReward: 10,
                 action: async () => await this.findAndEatFood()
             });
+        }
+        
+        // Proactive food management - eat before getting too hungry
+        // This prevents starvation during long activities like mining
+        const foodLevel = this.bot.food;
+        if (foodLevel < 16 && foodLevel >= 10) { // Between 50-80% hunger
+            const hasFood = await this.systems.inventory.findFood();
+            if (hasFood && Math.random() < 0.4) { // 40% chance to eat proactively
+                goals.push({
+                    name: 'proactive_eating',
+                    type: 'survival',
+                    priority: this.priorities.HIGH,
+                    expectedReward: 7,
+                    action: async () => {
+                        console.log(`Proactive eating - food level at ${foodLevel}/20`);
+                        return await this.findAndEatFood();
+                    }
+                });
+            }
         }
 
         if (this.safety.isLowHealth()) {
@@ -616,6 +681,9 @@ class BehaviorManager {
     async mineResources() {
         console.log('Mining resources');
         
+        // Ensure we have torches before mining
+        await this.ensureTorches();
+        
         const activity = Math.random();
         
         if (activity < 0.3) {
@@ -627,6 +695,34 @@ class BehaviorManager {
         } else {
             // Search for valuable ores
             await this.systems.gathering.searchForValuableOres();
+        }
+    }
+    
+    /**
+     * Ensures the bot has torches before going mining
+     * Crafts torches if needed and possible
+     */
+    async ensureTorches() {
+        const torchCount = this.bot.inventory.items().filter(i => i.name === 'torch').reduce((sum, item) => sum + item.count, 0);
+        
+        // If we have less than 8 torches, try to craft more
+        if (torchCount < 8) {
+            console.log(`Low on torches (${torchCount}), attempting to craft more`);
+            
+            // Check if we have materials: coal/charcoal + sticks
+            const hasCoal = await this.systems.inventory.hasItem('coal', 1) || await this.systems.inventory.hasItem('charcoal', 1);
+            const hasSticks = await this.systems.inventory.hasItem('stick', 1);
+            
+            if (hasCoal && hasSticks) {
+                // Craft torches
+                await this.systems.crafting.craftTorches();
+                const newTorchCount = this.bot.inventory.items().filter(i => i.name === 'torch').reduce((sum, item) => sum + item.count, 0);
+                console.log(`Crafted torches. Now have: ${newTorchCount}`);
+            } else if (!hasCoal && torchCount > 0) {
+                console.log(`No coal/charcoal available, but have ${torchCount} torches. Will proceed with caution.`);
+            } else if (torchCount === 0) {
+                console.log('⚠️ No torches and cannot craft! Mining will be dark.');
+            }
         }
     }
 
