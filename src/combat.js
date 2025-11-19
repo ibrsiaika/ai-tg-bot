@@ -135,12 +135,15 @@ class CombatSystem {
         this.currentTarget = closest;
 
         try {
-            // Move towards enemy
+            // Determine optimal combat distance based on mob type
+            const combatDistance = this.getOptimalCombatDistance(closest);
+            
+            // Move towards enemy at optimal distance
             await this.bot.pathfinder.goto(new goals.GoalNear(
                 closest.position.x,
                 closest.position.y,
                 closest.position.z,
-                2
+                combatDistance
             ));
 
             // Attack
@@ -540,6 +543,36 @@ class CombatSystem {
             console.log('Insufficient materials for shield (need: 6 planks + 1 iron ingot)');
         }
         return false;
+    }
+    
+    /**
+     * Returns the optimal combat distance based on mob type
+     * Ranged mobs need distance, melee mobs can be fought up close
+     */
+    getOptimalCombatDistance(entity) {
+        const mobType = entity.name || entity.type;
+        
+        // Ranged mobs - keep distance
+        const rangedMobs = ['skeleton', 'stray', 'witch', 'pillager', 'illusioner'];
+        if (rangedMobs.some(mob => mobType && mobType.toLowerCase().includes(mob))) {
+            console.log(`Ranged mob detected (${mobType}), maintaining distance`);
+            return 4; // Stay 4 blocks away for safety while still able to hit
+        }
+        
+        // Flying mobs - medium distance
+        const flyingMobs = ['phantom', 'vex'];
+        if (flyingMobs.some(mob => mobType && mobType.toLowerCase().includes(mob))) {
+            return 3;
+        }
+        
+        // Explosive mobs - maximum safe distance
+        if (mobType && mobType.toLowerCase().includes('creeper')) {
+            console.log('Creeper detected, using hit-and-run tactics');
+            return 5; // Stay outside blast radius
+        }
+        
+        // Melee mobs - close combat
+        return 2; // Standard melee range
     }
 
     sleep(ms) {

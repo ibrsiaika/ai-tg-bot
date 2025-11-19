@@ -74,7 +74,10 @@ class ResourceGatherer {
                     });
 
                     if (!tree) {
-                        console.log('No trees found nearby, exploring to find more...');
+                        console.log(`🔍 No trees found nearby (search attempt ${searchAttempts}/${maxSearchAttempts})`);
+                        if (searchAttempts >= maxSearchAttempts / 2) {
+                            console.log('💡 Suggestion: Try moving to a different biome or exploring further');
+                        }
                         searchAttempts++;
                         await this.exploreForResource('log');
                         continue;
@@ -183,7 +186,19 @@ class ResourceGatherer {
             });
 
             if (!ore) {
-                console.log(`No ${oreType} ore found nearby`);
+                const depth = Math.floor(this.bot.entity.position.y);
+                console.log(`🔍 No ${oreType} ore found nearby`);
+                
+                // Provide depth-based suggestions
+                if (oreType === 'diamond' && depth > 16) {
+                    console.log(`💡 Suggestion: Diamonds spawn below Y=16. Current depth: Y=${depth}. Go deeper!`);
+                } else if (oreType === 'iron' && depth < 0) {
+                    console.log(`💡 Suggestion: Iron is more common at Y=0-64. Current depth: Y=${depth}. Try higher!`);
+                } else if (oreType === 'coal' && depth < 40) {
+                    console.log(`💡 Suggestion: Coal is abundant near surface. Try Y=40-96`);
+                } else {
+                    console.log(`💡 Suggestion: Try branch mining or exploring caves at the right depth for ${oreType}`);
+                }
                 return false;
             }
 

@@ -19,6 +19,12 @@ class MiningSystem {
     async branchMine(depth = 12, length = 50) {
         console.log(`Starting branch mine at depth Y=${depth}`);
         
+        // Check for water bucket before deep mining
+        const hasWaterBucket = await this.checkWaterBucket();
+        if (!hasWaterBucket && depth < 20) {
+            console.log('⚠️ Mining at Y=' + depth + ' without water bucket - lava risk!');
+        }
+        
         try {
             // Go to mining depth
             const startPos = this.bot.entity.position;
@@ -510,6 +516,27 @@ class MiningSystem {
         }
         
         console.log('Reached surface');
+    }
+    
+    /**
+     * Checks if the bot has a water bucket for lava safety
+     * Returns true if water bucket is available
+     */
+    async checkWaterBucket() {
+        const waterBucket = await this.inventory.findItem('water_bucket');
+        if (waterBucket) {
+            console.log('✓ Water bucket available for lava safety');
+            return true;
+        }
+        
+        // Check if we have an empty bucket to fill
+        const emptyBucket = await this.inventory.findItem('bucket');
+        if (emptyBucket) {
+            console.log('Empty bucket available - could fill with water before mining');
+            // TODO: Could add auto-fill logic here
+        }
+        
+        return false;
     }
 
     sleep(ms) {

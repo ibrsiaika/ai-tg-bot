@@ -423,9 +423,9 @@ class CraftingSystem {
         }
 
         const rawOres = [
-            { raw: 'raw_iron', result: 'iron_ingot' },
-            { raw: 'raw_gold', result: 'gold_ingot' },
-            { raw: 'raw_copper', result: 'copper_ingot' }
+            { raw: 'raw_iron', result: 'iron_ingot', priority: 3 },      // Highest priority
+            { raw: 'raw_gold', result: 'gold_ingot', priority: 2 },
+            { raw: 'raw_copper', result: 'copper_ingot', priority: 1 }
         ];
         
         const fuel = await this.inventory.findItem('coal') || 
@@ -437,10 +437,15 @@ class CraftingSystem {
             return false;
         }
 
+        // Sort ores by priority (iron first, it's most useful)
+        rawOres.sort((a, b) => b.priority - a.priority);
+        
         let smelted = false;
+        let totalSmelted = 0;
+        
         for (const ore of rawOres) {
-            const hasOre = await this.inventory.hasItem(ore.raw, 1);
-            if (hasOre) {
+            const oreItem = await this.inventory.findItem(ore.raw);
+            if (oreItem && oreItem.count > 0) {
                 try {
                     await this.bot.pathfinder.goto(new goals.GoalBlock(
                         furnace.position.x, 
@@ -450,34 +455,47 @@ class CraftingSystem {
                     
                     const furnaceWindow = await this.bot.openFurnace(furnace);
                     
-                    // Put ore in input slot
-                    const oreItem = await this.inventory.findItem(ore.raw);
-                    if (oreItem) {
-                        await furnaceWindow.putInput(oreItem.type, null, oreItem.count);
-                    }
+                    // Calculate how many we can smelt (max 64 at a time)
+                    const smeltCount = Math.min(oreItem.count, 64);
+                    const fuelNeeded = Math.ceil(smeltCount / 8); // 1 coal smelts 8 items
                     
-                    // Put fuel in fuel slot
+                    // Put ore in input slot
+                    await furnaceWindow.putInput(oreItem.type, null, smeltCount);
+                    
+                    // Put appropriate amount of fuel
                     const fuelItem = await this.inventory.findItem('coal') || 
                                     await this.inventory.findItem('charcoal');
                     if (fuelItem) {
-                        await furnaceWindow.putFuel(fuelItem.type, null, Math.min(fuelItem.count, 8));
+                        const fuelToUse = Math.min(fuelItem.count, fuelNeeded);
+                        await furnaceWindow.putFuel(fuelItem.type, null, fuelToUse);
                     }
                     
-                    console.log(`Smelting ${ore.raw} into ${ore.result}`);
+                    console.log(`Batch smelting ${smeltCount}x ${ore.raw} into ${ore.result} (${fuelNeeded} coal needed)`);
                     
-                    // Wait for smelting to complete
-                    await this.sleep(10000); // 10 seconds
+                    // Wait for smelting to complete (10 seconds per item, but max 10 seconds for small batches)
+                    const smeltTime = Math.min(smeltCount * 10000, 30000); // Max 30 seconds wait
+                    await this.sleep(smeltTime);
                     
                     // Take output
                     await furnaceWindow.takeOutput();
                     furnaceWindow.close();
                     
                     smelted = true;
-                    await this.notifier.send(`Smelted ${ore.raw} into ${ore.result}`);
+                    totalSmelted += smeltCount;
+                    
+                    if (smeltCount > 1) {
+                        await this.notifier.send(`⚒️ Batch smelted ${smeltCount}x ${ore.raw} into ${ore.result}!`);
+                    } else {
+                        await this.notifier.send(`Smelted ${ore.raw} into ${ore.result}`);
+                    }
                 } catch (error) {
                     console.error(`Error smelting ${ore.raw}:`, error.message);
                 }
             }
+        }
+        
+        if (totalSmelted > 0) {
+            console.log(`Total items smelted this session: ${totalSmelted}`);
         }
         
         return smelted;
