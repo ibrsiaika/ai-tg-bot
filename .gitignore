@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 package-lock.json
+frontend/node_modules/
 
 # Environment variables
 .env
@@ -52,3 +53,14 @@ temp/
 
 # Plugin data
 plugins/*/data/
+
+# v4.1.0 ML Models and Data
+models/
+*.h5
+*.tflite
+*.pb
+training-data/
+
+# v4.1.0 Multi-bot coordination data
+multibot-data/
+coordination-state/
