@@ -1,0 +1,9 @@
+{
+  "name": "example-plugin",
+  "version": "1.0.0",
+  "description": "Example plugin demonstrating custom bot behavior",
+  "main": "index.js",
+  "author": "Bot Developer",
+  "botVersion": "4.0.0",
+  "keywords": ["minecraft", "bot", "plugin", "example"]
+}

@@ -8,6 +8,12 @@ package-lock.json
 # Bot memory and runtime data
 .bot-memory.json
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+bot-data/
+
 # Logs
 logs/
 *.log
@@ -22,6 +28,12 @@ pids/
 # Build artifacts
 dist/
 build/
+frontend/dist/
+frontend/build/
+
+# Test coverage
+coverage/
+.nyc_output/
 
 # IDE
 .vscode/
@@ -37,3 +49,6 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Plugin data
+plugins/*/data/
