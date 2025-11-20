@@ -1,12 +1,16 @@
 {
   "name": "autonomous-minecraft-bot",
-  "version": "3.0.0",
-  "description": "Game-changing autonomous Minecraft bot with hybrid AI, advanced error recovery, and performance optimization",
+  "version": "4.0.0",
+  "description": "Enterprise-grade autonomous Minecraft bot with persistent storage, web dashboard, and plugin system",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "test": "echo \"No tests yet - bot requires running Minecraft server\" && exit 0",
+    "dashboard": "node src/dashboard.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
     "validate": "node -c index.js && node -c src/*.js && echo '✓ All files validated'",
     "check-env": "node -e \"require('dotenv').config(); console.log('✓ Environment loaded'); console.log('Host:', process.env.MINECRAFT_HOST); console.log('Telegram:', process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'Not configured'); console.log('Gemini AI:', process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured');\""
   },
@@ -22,16 +26,28 @@
     "optimization",
     "hybrid-intelligence",
     "self-healing",
-    "game-changer"
+    "game-changer",
+    "enterprise",
+    "dashboard",
+    "plugin-system"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^9.2.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "mineflayer": "*",
     "mineflayer-collectblock": "*",
     "mineflayer-pathfinder": "*",
-    "node-telegram-bot-api": "*"
+    "node-telegram-bot-api": "*",
+    "winston": "^3.11.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.8",
+    "jest": "^29.7.0"
   }
 }

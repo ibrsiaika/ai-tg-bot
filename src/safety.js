@@ -100,7 +100,8 @@ class SafetyMonitor {
     }
 
     isHostileMob(entity) {
-        return entity.name && CONSTANTS.HOSTILE_MOBS.some(type => 
+        if (!entity || !entity.name) return false;
+        return CONSTANTS.HOSTILE_MOBS.some(type => 
             entity.name.toLowerCase().includes(type)
         );
     }

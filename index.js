@@ -38,6 +38,11 @@ const AIOrchestrator = require('./src/aiOrchestrator');
 const ErrorHandler = require('./src/errorHandler');
 const OptimizationManager = require('./src/optimizationManager');
 
+// NEW v4.0.0 Systems
+const EventBus = require('./src/eventBus');
+const StorageSystem = require('./src/storage');
+const Dashboard = require('./src/dashboard');
+
 class AutonomousMinecraftBot {
     constructor(config) {
         this.config = config;
@@ -196,6 +201,20 @@ class AutonomousMinecraftBot {
 
     async initializeSystems() {
         console.log('Initializing systems...');
+
+        // NEW v4.0.0: Initialize Event Bus first (needed by other systems)
+        this.systems.eventBus = new EventBus();
+        console.log('✓ Event Bus initialized');
+
+        // NEW v4.0.0: Initialize Storage System
+        this.systems.storage = new StorageSystem('./bot-data/bot-storage.db');
+        await this.systems.storage.initialize();
+        
+        // Try to restore previous state
+        const previousState = await this.systems.storage.loadState();
+        if (previousState) {
+            console.log(`✓ Restored previous state from ${new Date(previousState.timestamp).toLocaleString()}`);
+        }
 
         // Load pathfinder
         this.bot.loadPlugin(pathfinder);
@@ -453,8 +472,32 @@ class AutonomousMinecraftBot {
             this.systems.notifier
         );
 
-        console.log('✓ All systems initialized (30 systems online)');
-        await this.systems.notifier.send('🤖 GAME CHANGER: 30 AI systems online! Hybrid Intelligence (AI Orchestrator), Advanced Error Recovery, Performance Optimization + Full Phase 2-4 features. Smart decision routing between Gemini AI & Bot Brain. Beginning fully optimized autonomous operations.');
+        // NEW v4.0.0: Initialize Dashboard (optional - start on separate port)
+        if (this.config.enableDashboard !== false) {
+            this.systems.dashboard = new Dashboard(
+                this.bot,
+                this.systems,
+                this.config.dashboardPort || 3000
+            );
+            
+            // Start dashboard in background (don't await to avoid blocking)
+            this.systems.dashboard.start().catch(error => {
+                console.warn('⚠ Dashboard failed to start:', error.message);
+                this.systems.dashboard = null;
+            });
+        }
+
+        console.log('✓ All systems initialized (33 systems online)');
+        await this.systems.notifier.send('🤖 ENTERPRISE v4.0.0: 33 AI systems online! NEW: Persistent Storage, Event Bus, Web Dashboard. Features: Hybrid Intelligence, Advanced Error Recovery, Performance Optimization, State Persistence. Beginning fully optimized autonomous operations with enterprise-grade monitoring.');
+        
+        // Emit system initialized event
+        if (this.systems.eventBus) {
+            this.systems.eventBus.emit(EventBus.EVENTS.SYSTEM_INITIALIZED, {
+                systemCount: 33,
+                version: '4.0.0',
+                timestamp: Date.now()
+            });
+        }
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
@@ -472,6 +515,53 @@ class AutonomousMinecraftBot {
         
         // Start performance optimization
         this.systems.optimizationManager.startOptimization();
+        
+        // NEW v4.0.0: Start periodic state saving (every 5 minutes)
+        this.startPeriodicStateSaving();
+    }
+
+    /**
+     * NEW v4.0.0: Periodically save bot state to storage
+     */
+    startPeriodicStateSaving() {
+        const SAVE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        
+        setInterval(async () => {
+            try {
+                if (!this.bot || !this.bot.entity || !this.systems.storage) return;
+                
+                const state = {
+                    position: this.bot.entity.position,
+                    health: this.bot.health,
+                    food: this.bot.food,
+                    inventory: this.bot.inventory.items().map(item => ({
+                        name: item.name,
+                        count: item.count
+                    })),
+                    goals: this.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
+                    currentGoal: this.systems.behavior?.currentGoal || null,
+                    metadata: {
+                        uptime: process.uptime(),
+                        timestamp: Date.now()
+                    }
+                };
+                
+                await this.systems.storage.saveState(state);
+                
+                // Save performance metrics
+                if (this.systems.analytics) {
+                    const metrics = this.systems.analytics.getMetrics?.();
+                    if (metrics) {
+                        await this.systems.storage.saveMetric('decisions_per_minute', metrics.decisionsPerMinute || 0);
+                        await this.systems.storage.saveMetric('errors_per_hour', metrics.errorsPerHour || 0);
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠ Failed to save periodic state:', error.message);
+            }
+        }, SAVE_INTERVAL);
+        
+        console.log('✓ Periodic state saving enabled (every 5 minutes)');
     }
 }
 
@@ -485,7 +575,10 @@ const config = {
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
     geminiApiKey: process.env.GEMINI_API_KEY,
     minHealthPercent: parseInt(process.env.MIN_HEALTH_PERCENT) || CONSTANTS.SAFETY.DEFAULT_MIN_HEALTH_PERCENT,
-    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL
+    minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL,
+    // NEW v4.0.0 config options
+    enableDashboard: process.env.ENABLE_DASHBOARD !== 'false', // Default enabled
+    dashboardPort: parseInt(process.env.DASHBOARD_PORT) || 3000
 };
 
 // Validate configuration
@@ -504,18 +597,23 @@ if (!validation.valid) {
 }
 
 console.log('═══════════════════════════════════════════════');
-console.log('  AUTONOMOUS MINECRAFT BOT');
-console.log('  Fully Automated Survival & Building Robot');
+console.log('  AUTONOMOUS MINECRAFT BOT v4.0.0');
+console.log('  Enterprise-Grade Automation Framework');
 console.log('═══════════════════════════════════════════════');
 console.log('');
 console.log('Configuration:');
 console.log(`  Server: ${config.host}:${config.port}`);
 console.log(`  Username: ${config.username}`);
 console.log(`  Telegram: ${config.telegramToken ? 'Enabled' : 'Disabled'}`);
+console.log(`  Dashboard: ${config.enableDashboard ? `Enabled (port ${config.dashboardPort})` : 'Disabled'}`);
 console.log(`  Health Threshold: ${config.minHealthPercent}%`);
 console.log(`  Food Threshold: ${config.minFoodLevel}`);
 console.log('');
-console.log('Features:');
+console.log('Features (v4.0.0):');
+console.log('  ✓ Persistent Storage & State Recovery');
+console.log('  ✓ Web Dashboard with Real-time Updates');
+console.log('  ✓ Event-Driven Architecture');
+console.log('  ✓ Comprehensive Test Coverage');
 console.log('  ✓ Enhanced AI with adaptive behavior');
 console.log('  ✓ Advanced intelligence "brain" system');
 console.log('  ✓ Learning from experience');
@@ -591,11 +689,49 @@ autonomousBot.start().catch(error => {
 process.on('SIGINT', async () => {
     console.log('\nShutting down bot...');
     
+    // NEW v4.0.0: Save final state to storage
+    if (autonomousBot.bot && autonomousBot.bot.entity && autonomousBot.systems && autonomousBot.systems.storage) {
+        console.log('Saving final state...');
+        try {
+            const finalState = {
+                position: autonomousBot.bot.entity.position,
+                health: autonomousBot.bot.health,
+                food: autonomousBot.bot.food,
+                inventory: autonomousBot.bot.inventory.items().map(item => ({
+                    name: item.name,
+                    count: item.count
+                })),
+                goals: autonomousBot.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
+                currentGoal: autonomousBot.systems.behavior?.currentGoal || null,
+                metadata: {
+                    shutdownTime: Date.now(),
+                    uptime: process.uptime()
+                }
+            };
+            await autonomousBot.systems.storage.saveState(finalState);
+            console.log('✓ Final state saved');
+        } catch (error) {
+            console.warn('⚠ Failed to save final state:', error.message);
+        }
+    }
+    
     // Create final backup before shutdown
     if (autonomousBot.systems && autonomousBot.systems.backup) {
         console.log('Creating final backup...');
         await autonomousBot.systems.backup.createBackup();
         autonomousBot.systems.backup.stopAutomaticBackups();
+    }
+    
+    // Stop dashboard
+    if (autonomousBot.systems && autonomousBot.systems.dashboard) {
+        console.log('Stopping dashboard...');
+        autonomousBot.systems.dashboard.stop();
+    }
+    
+    // Close storage
+    if (autonomousBot.systems && autonomousBot.systems.storage) {
+        console.log('Closing storage...');
+        autonomousBot.systems.storage.close();
     }
     
     if (autonomousBot.systems && autonomousBot.systems.behavior) {
