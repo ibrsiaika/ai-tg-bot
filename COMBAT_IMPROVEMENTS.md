@@ -107,13 +107,11 @@ When testing combat improvements:
 2. Test retreat behavior at different health levels
 3. Verify item collection after combat
 4. Check multiple mob engagement
-5. Test team coordination in team mode
 
 ## Future Enhancements
 
 Potential future improvements:
 - Dodge mechanics for projectiles
-- Formation combat for team mode
 - Weapon switching based on mob type
 - Advanced kiting strategies
 - Potion usage during combat

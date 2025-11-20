@@ -1,30 +1,6 @@
 # Autonomous Minecraft Bot - Enhanced Edition
 
-A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, **advanced base building**, **Google Gemini AI integration**, **comprehensive item protection**, and **multi-bot team coordination**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, fishing, and combat. It sends important updates to your Telegram.
-
-## 🆕 NEW: Multi-Bot Team System
-
-**Work as a coordinated team with specialized roles!**
-
-Run three bots simultaneously, each with distinct responsibilities:
-- 🛡️ **Defender Bot** - Protects the base and eliminates threats
-- 🏗️ **Builder Bot** - Constructs and expands structures
-- ⛏️ **Miner Bot** - Gathers resources and returns to base
-
-**Team Features:**
-- Inter-bot communication and coordination
-- Shared resource pool management
-- Automated help requests between bots
-- Team status reporting
-- Role-specific AI decision making
-- Collaborative task completion
-
-**Quick Start Team Mode:**
-```bash
-npm run team
-```
-
-See **[Team System Guide](TEAM_GUIDE.md)** for complete documentation.
+A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring **enhanced AI**, **intelligent exploration**, **advanced base building**, **Google Gemini AI integration**, and **comprehensive item protection**. This bot operates 24/7 without human commands, making intelligent decisions about survival, resource gathering, building, mining, farming, fishing, and combat. It sends important updates to your Telegram.
 
 ## 🤖 Enhanced Features
 
@@ -35,7 +11,6 @@ See **[Team System Guide](TEAM_GUIDE.md)** for complete documentation.
 - **Building Advice**: Strategic recommendations for base development
 - **Danger Response**: Smart threat assessment and action recommendations
 - **Performance Analysis**: AI-driven optimization suggestions
-- **Team Coordination**: Role-specific AI advice for each bot in team mode
 
 ### Item Protection System (NEW)
 - **Player Detection**: Monitors nearby players and protects items
@@ -216,9 +191,7 @@ The bot sends concise, professional notifications for important events:
 
 ## 📚 Documentation
 
-- **[Team System Guide](TEAM_GUIDE.md)** - Multi-bot team coordination and specialized roles (NEW!)
 - **[Combat Improvements](COMBAT_IMPROVEMENTS.md)** - Enhanced combat system documentation (NEW!)
-- **[Configuration Update Guide](CONFIG_UPDATE_GUIDE.md)** - Configuration fixes and setup help (NEW!)
 - **[AI Features Guide](AI_FEATURES.md)** - Comprehensive guide to Gemini AI, item protection, and advanced crafting
 - **[Quick Start Guide](QUICKSTART.md)** - Get started quickly
 - **[Customization Guide](CUSTOMIZATION.md)** - Customize bot behavior
@@ -262,14 +235,8 @@ The bot sends concise, professional notifications for important events:
 
 4. **Run the bot**
    
-   Single Bot Mode (traditional):
    ```bash
    npm start
-   ```
-   
-   Team Mode (3 specialized bots):
-   ```bash
-   npm run team
    ```
 
 ## ⚙️ Configuration
@@ -310,21 +277,6 @@ Once started, the bot operates completely autonomously:
 4. **Resource Expansion**: Mines ores and collects materials
 5. **Advanced Operations**: Farming, exploration, and base expansion
 6. **Continuous Improvement**: Upgrades equipment and expands capabilities
-
-### Team Mode (NEW!)
-In team mode, three specialized bots work together:
-
-1. **Defender Bot**: Patrols base, eliminates threats, maintains security
-2. **Builder Bot**: Constructs structures, farms, and infrastructure
-3. **Miner Bot**: Mines resources, explores caves, delivers materials
-
-**Team Coordination:**
-- Bots communicate and share resources
-- Help each other when in danger
-- Coordinate on shared goals
-- Report team status regularly
-
-See **[Team System Guide](TEAM_GUIDE.md)** for detailed team operations.
 
 The bot makes decisions based on:
 - Current health and food levels
@@ -383,12 +335,8 @@ The bot uses a priority-based goal system enhanced with intelligence:
 ### Project Structure
 ```
 ai-tg-bot/
-├── index.js              # Main entry point (single bot)
-├── index-team.js         # Team mode entry point (NEW)
+├── index.js              # Main entry point
 ├── src/
-│   ├── teamCoordinator.js    # Team coordination system (NEW)
-│   ├── roleConfigs.js        # Bot role configurations (NEW)
-│   ├── roleBehaviorManager.js # Role-based behaviors (NEW)
 │   ├── behavior.js       # Autonomous decision making (Enhanced with AI)
 │   ├── intelligence.js   # Advanced intelligence system (NEW)
 │   ├── geminiAI.js       # Google Gemini AI integration (Enhanced logging)
@@ -406,8 +354,7 @@ ai-tg-bot/
 │   └── farming.js        # Farming automation
 ├── package.json
 ├── .env.example
-├── README.md
-└── TEAM_GUIDE.md         # Team system documentation (NEW)
+└── README.md
 ```
 
 ### Adding Custom Behaviors
@@ -473,4 +420,4 @@ Built with:
 
 ---
 
-**Status**: Fully Autonomous | **Mode**: Single Bot / Team Mode | **Intelligence**: Hybrid AI (v3.0.0) | **Systems**: 30+ Online | **Team**: 3 Specialized Bots
+**Status**: Fully Autonomous | **Intelligence**: Hybrid AI (v3.0.0) | **Systems**: 30+ Online
