@@ -530,14 +530,20 @@ class AutonomousMinecraftBot {
             try {
                 if (!this.bot || !this.bot.entity || !this.systems.storage) return;
                 
+                // Safely extract position with fallback to default values
+                const position = this.bot.entity.position || {};
                 const state = {
-                    position: this.bot.entity.position,
-                    health: this.bot.health,
-                    food: this.bot.food,
-                    inventory: this.bot.inventory.items().map(item => ({
+                    position: {
+                        x: position.x ?? 0,
+                        y: position.y ?? 64,
+                        z: position.z ?? 0
+                    },
+                    health: this.bot.health ?? 20,
+                    food: this.bot.food ?? 20,
+                    inventory: this.bot.inventory?.items?.()?.map(item => ({
                         name: item.name,
                         count: item.count
-                    })),
+                    })) || [],
                     goals: this.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
                     currentGoal: this.systems.behavior?.currentGoal || null,
                     metadata: {
