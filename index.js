@@ -52,6 +52,33 @@ class AutonomousMinecraftBot {
         this.lastErrorTime = new Map(); // Track last error time for rate limiting
     }
 
+    /**
+     * Safely extract bot state with fallback values
+     * Ensures all required properties exist for database storage
+     */
+    extractBotState() {
+        if (!this.bot) {
+            return null;
+        }
+
+        // Safely extract position with fallback to default spawn values
+        const position = this.bot.entity?.position || {};
+        
+        return {
+            position: {
+                x: position.x ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.x,
+                y: position.y ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.y,
+                z: position.z ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.z
+            },
+            health: this.bot.health ?? CONSTANTS.STATE.DEFAULT_HEALTH,
+            food: this.bot.food ?? CONSTANTS.STATE.DEFAULT_FOOD,
+            inventory: this.bot.inventory?.items?.()?.map(item => ({
+                name: item.name,
+                count: item.count
+            })) || []
+        };
+    }
+
     async start() {
         console.log('Starting Autonomous Minecraft Bot');
         console.log('═══════════════════════════════════');
@@ -528,22 +555,13 @@ class AutonomousMinecraftBot {
         
         setInterval(async () => {
             try {
-                if (!this.bot || !this.bot.entity || !this.systems.storage) return;
+                if (!this.systems.storage) return;
                 
-                // Safely extract position with fallback to default spawn values
-                const position = this.bot.entity.position || {};
+                const botState = this.extractBotState();
+                if (!botState) return;
+                
                 const state = {
-                    position: {
-                        x: position.x ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.x,
-                        y: position.y ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.y,
-                        z: position.z ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.z
-                    },
-                    health: this.bot.health ?? CONSTANTS.STATE.DEFAULT_HEALTH,
-                    food: this.bot.food ?? CONSTANTS.STATE.DEFAULT_FOOD,
-                    inventory: this.bot.inventory?.items?.()?.map(item => ({
-                        name: item.name,
-                        count: item.count
-                    })) || [],
+                    ...botState,
                     goals: this.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
                     currentGoal: this.systems.behavior?.currentGoal || null,
                     metadata: {
@@ -696,32 +714,23 @@ process.on('SIGINT', async () => {
     console.log('\nShutting down bot...');
     
     // NEW v4.0.0: Save final state to storage
-    if (autonomousBot.bot && autonomousBot.bot.entity && autonomousBot.systems && autonomousBot.systems.storage) {
+    if (autonomousBot.systems && autonomousBot.systems.storage) {
         console.log('Saving final state...');
         try {
-            // Safely extract position with fallback to default spawn values
-            const position = autonomousBot.bot.entity.position || {};
-            const finalState = {
-                position: {
-                    x: position.x ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.x,
-                    y: position.y ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.y,
-                    z: position.z ?? CONSTANTS.STATE.DEFAULT_SPAWN_POSITION.z
-                },
-                health: autonomousBot.bot.health ?? CONSTANTS.STATE.DEFAULT_HEALTH,
-                food: autonomousBot.bot.food ?? CONSTANTS.STATE.DEFAULT_FOOD,
-                inventory: autonomousBot.bot.inventory?.items?.()?.map(item => ({
-                    name: item.name,
-                    count: item.count
-                })) || [],
-                goals: autonomousBot.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
-                currentGoal: autonomousBot.systems.behavior?.currentGoal || null,
-                metadata: {
-                    shutdownTime: Date.now(),
-                    uptime: process.uptime()
-                }
-            };
-            await autonomousBot.systems.storage.saveState(finalState);
-            console.log('✓ Final state saved');
+            const botState = autonomousBot.extractBotState();
+            if (botState) {
+                const finalState = {
+                    ...botState,
+                    goals: autonomousBot.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
+                    currentGoal: autonomousBot.systems.behavior?.currentGoal || null,
+                    metadata: {
+                        shutdownTime: Date.now(),
+                        uptime: process.uptime()
+                    }
+                };
+                await autonomousBot.systems.storage.saveState(finalState);
+                console.log('✓ Final state saved');
+            }
         } catch (error) {
             console.warn('⚠ Failed to save final state:', error.message);
         }
