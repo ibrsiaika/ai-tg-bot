@@ -693,14 +693,20 @@ process.on('SIGINT', async () => {
     if (autonomousBot.bot && autonomousBot.bot.entity && autonomousBot.systems && autonomousBot.systems.storage) {
         console.log('Saving final state...');
         try {
+            // Safely extract position with fallback to default values
+            const position = autonomousBot.bot.entity.position || {};
             const finalState = {
-                position: autonomousBot.bot.entity.position,
-                health: autonomousBot.bot.health,
-                food: autonomousBot.bot.food,
-                inventory: autonomousBot.bot.inventory.items().map(item => ({
+                position: {
+                    x: position.x ?? 0,
+                    y: position.y ?? 64,
+                    z: position.z ?? 0
+                },
+                health: autonomousBot.bot.health ?? 20,
+                food: autonomousBot.bot.food ?? 20,
+                inventory: autonomousBot.bot.inventory?.items?.()?.map(item => ({
                     name: item.name,
                     count: item.count
-                })),
+                })) || [],
                 goals: autonomousBot.systems.intelligence?.longTermGoals?.map(g => g.description) || [],
                 currentGoal: autonomousBot.systems.behavior?.currentGoal || null,
                 metadata: {
