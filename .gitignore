@@ -54,8 +54,7 @@ temp/
 # Plugin data
 plugins/*/data/
 
-# v4.1.0 ML Models and Data
-models/
+# v4.1.0 ML Training Data (models/ is now included for pre-trained models)
 *.h5
 *.tflite
 *.pb

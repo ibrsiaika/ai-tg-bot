@@ -1,0 +1,97 @@
+[
+  {
+    "paths": [
+      "weights.bin"
+    ],
+    "weights": [
+      {
+        "name": "dense_Dense5/kernel",
+        "shape": [
+          15,
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense5/bias",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization3/gamma",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization3/beta",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense6/kernel",
+        "shape": [
+          64,
+          32
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense6/bias",
+        "shape": [
+          32
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense7/kernel",
+        "shape": [
+          32,
+          16
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense7/bias",
+        "shape": [
+          16
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense8/kernel",
+        "shape": [
+          16,
+          1
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense8/bias",
+        "shape": [
+          1
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization3/moving_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization3/moving_variance",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      }
+    ]
+  }
+]

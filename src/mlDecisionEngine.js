@@ -79,10 +79,13 @@ class MLDecisionEngine {
             this.initialized = true;
             console.log('[ML Engine] ✓ Initialized successfully');
             
-            EventBus.emit('ml:initialized', {
-                timestamp: Date.now(),
-                modelsLoaded: Object.keys(this.models).length
-            });
+            // Emit event only if EventBus is available
+            if (EventBus && typeof EventBus.emit === 'function') {
+                EventBus.emit('ml:initialized', {
+                    timestamp: Date.now(),
+                    modelsLoaded: Object.keys(this.models).length
+                });
+            }
             
         } catch (error) {
             console.error('[ML Engine] Initialization error:', error.message);
@@ -94,17 +97,37 @@ class MLDecisionEngine {
      * Load pre-trained models from disk
      */
     async loadModels() {
-        const modelFiles = {
-            actionPredictor: path.join(this.modelPath, 'action-predictor', 'model.json'),
-            resourcePrioritizer: path.join(this.modelPath, 'resource-prioritizer', 'model.json'),
-            riskAssessor: path.join(this.modelPath, 'risk-assessor', 'model.json')
+        const modelDirs = {
+            actionPredictor: path.join(this.modelPath, 'action-predictor'),
+            resourcePrioritizer: path.join(this.modelPath, 'resource-prioritizer'),
+            riskAssessor: path.join(this.modelPath, 'risk-assessor')
         };
         
-        for (const [name, modelPath] of Object.entries(modelFiles)) {
+        for (const [name, modelDir] of Object.entries(modelDirs)) {
             try {
-                if (fs.existsSync(modelPath)) {
-                    this.models[name] = await tf.loadLayersModel(`file://${modelPath}`);
-                    console.log(`[ML Engine] Loaded ${name} model`);
+                const modelPath = path.join(modelDir, 'model.json');
+                const weightsPath = path.join(modelDir, 'weights.bin');
+                
+                if (fs.existsSync(modelPath) && fs.existsSync(weightsPath)) {
+                    // Create custom IOHandler
+                    const ioHandler = {
+                        load: async () => {
+                            const modelTopology = JSON.parse(fs.readFileSync(modelPath, 'utf8'));
+                            const weightData = new Uint8Array(fs.readFileSync(weightsPath)).buffer;
+                            const weightsManifest = JSON.parse(
+                                fs.readFileSync(path.join(modelDir, 'weights_manifest.json'), 'utf8')
+                            );
+                            
+                            return {
+                                modelTopology,
+                                weightSpecs: weightsManifest[0].weights,
+                                weightData
+                            };
+                        }
+                    };
+                    
+                    this.models[name] = await tf.loadLayersModel(ioHandler);
+                    console.log(`[ML Engine] ✓ Loaded ${name} model from ${modelDir}`);
                 }
             } catch (error) {
                 console.log(`[ML Engine] Could not load ${name} model:`, error.message);
@@ -222,11 +245,14 @@ class MLDecisionEngine {
                 this.stats.apiCallsSaved++;
             }
             
-            EventBus.emit('ml:prediction', {
-                type: 'action',
-                result,
-                timestamp: Date.now()
-            });
+            // Emit event only if EventBus is available
+            if (EventBus && typeof EventBus.emit === 'function') {
+                EventBus.emit('ml:prediction', {
+                    type: 'action',
+                    result,
+                    timestamp: Date.now()
+                });
+            }
             
             return result;
             

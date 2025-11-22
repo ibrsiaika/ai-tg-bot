@@ -1,0 +1,125 @@
+[
+  {
+    "paths": [
+      "weights.bin"
+    ],
+    "weights": [
+      {
+        "name": "dense_Dense1/kernel",
+        "shape": [
+          20,
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense1/bias",
+        "shape": [
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization1/gamma",
+        "shape": [
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization1/beta",
+        "shape": [
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense2/kernel",
+        "shape": [
+          128,
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense2/bias",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization2/gamma",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization2/beta",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense3/kernel",
+        "shape": [
+          64,
+          32
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense3/bias",
+        "shape": [
+          32
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense4/kernel",
+        "shape": [
+          32,
+          10
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "dense_Dense4/bias",
+        "shape": [
+          10
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization1/moving_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization1/moving_variance",
+        "shape": [
+          128
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization2/moving_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "batch_normalization_BatchNormalization2/moving_variance",
+        "shape": [
+          64
+        ],
+        "dtype": "float32"
+      }
+    ]
+  }
+]
