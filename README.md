@@ -7,7 +7,7 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 ### 🤖 Machine Learning Decision Engine ⭐ ENHANCED
 - **<50ms Local Inference**: TensorFlow.js-powered predictions without API calls ✅ **Achieved 11ms!**
 - **70% API Reduction**: Intelligent caching and offline capability
-- **Pre-Trained Models Included**: Ready-to-use models - no training required! ✅
+- **Pre-Trained Models Included**: Ready-to-use models - no training required! ✅ (124KB total)
   - **Action Predictor** (84% accuracy): Recommends optimal actions from 10 choices
   - **Resource Prioritizer** (97% accuracy): Intelligently ranks resources for gathering
   - **Risk Assessor** (MAE 0.046): Evaluates danger levels with high precision
