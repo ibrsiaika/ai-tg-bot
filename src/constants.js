@@ -117,6 +117,13 @@ module.exports = {
         MOVEMENT_TIMEOUT: 60000 // 1 minute
     },
 
+    // Default State Values
+    STATE: {
+        DEFAULT_SPAWN_POSITION: { x: 0, y: 64, z: 0 },
+        DEFAULT_HEALTH: 20,
+        DEFAULT_FOOD: 20
+    },
+
     // Delay Constants (in milliseconds)
     DELAYS: {
         BETWEEN_GOALS: 5000,

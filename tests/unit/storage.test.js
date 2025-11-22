@@ -98,6 +98,24 @@ describe('StorageSystem', () => {
             expect(loaded.position.x).toBe(100);
             expect(loaded.health).toBe(20);
         });
+
+        test('should handle state with complete position object', async () => {
+            const state = {
+                position: { x: 50, y: 80, z: -30 },
+                health: 15,
+                food: 12,
+                inventory: [],
+                goals: []
+            };
+
+            await storage.saveState(state);
+            const loaded = await storage.loadState();
+
+            expect(loaded).not.toBeNull();
+            expect(loaded.position.x).toBe(50);
+            expect(loaded.position.y).toBe(80);
+            expect(loaded.position.z).toBe(-30);
+        });
     });
 
     describe('saveExploration and queryExploration', () => {
