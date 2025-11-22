@@ -377,7 +377,7 @@ class ModelTrainer {
             if (isNight && !inCave) riskScore += 0.05;
             
             // Ensure risk is in [0, 1] range
-            riskScore = Math.min(Math.max(riskScore, 0), 1);
+            riskScore = this.clamp(riskScore, 0, 1);
             
             data.push({
                 features: [
@@ -399,6 +399,13 @@ class ModelTrainer {
         }
         
         return data;
+    }
+    
+    /**
+     * Utility function to clamp a value between min and max
+     */
+    clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
     }
     
     /**
@@ -654,7 +661,7 @@ class ModelTrainer {
         
         model.compile({
             optimizer: tf.train.adam(0.001),
-            loss: 'meanSquaredError', // Use MSE for regression
+            loss: 'meanAbsoluteError', // Use MAE for regression - more stable with sigmoid
             metrics: ['mae'] // Use MAE for regression
         });
         
