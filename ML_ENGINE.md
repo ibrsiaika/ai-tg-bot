@@ -4,9 +4,11 @@
 
 The ML Decision Engine provides fast, local machine learning inference for the Minecraft bot using TensorFlow.js. It enables intelligent decision-making without relying on external API calls, achieving <50ms inference latency and reducing API usage by up to 70%.
 
+**✅ PRE-TRAINED MODELS INCLUDED** - The repository includes fully trained models ready for immediate use. No training required!
+
 ## Architecture
 
-### Three Specialized Models
+### Three Specialized Models (Pre-Trained & Included)
 
 1. **Action Predictor** - Recommends optimal actions based on game state
 2. **Resource Prioritizer** - Ranks resources by priority for efficient gathering
@@ -14,19 +16,21 @@ The ML Decision Engine provides fast, local machine learning inference for the M
 
 ### Model Performance
 
-| Model | Training Accuracy | Validation Accuracy | Purpose |
-|-------|------------------|---------------------|---------|
-| Action Predictor | 85% | 81-87% | 10-class classification |
-| Resource Prioritizer | 97% | 97-99% | Binary priority classification |
-| Risk Assessor | MAE: 0.0514 | MAE: 0.0504 | Regression (0-1 risk score) |
+| Model | Training Accuracy | Validation Accuracy | Purpose | Status |
+|-------|------------------|---------------------|---------|--------|
+| Action Predictor | 84% | 81-84% | 10-class classification | ✅ Pre-trained |
+| Resource Prioritizer | 97% | 97-99% | Binary priority classification | ✅ Pre-trained |
+| Risk Assessor | MAE: 0.051 | MAE: 0.046 | Regression (0-1 risk score) | ✅ Pre-trained |
 
 ### Features
 
-- **Fast Inference**: <50ms per prediction (target: <50ms)
+- **Pre-Trained Models**: No training required - models included in repository
+- **Fast Inference**: <50ms per prediction (typically 11ms)
 - **Offline Operation**: No internet required after model loading
 - **Intelligent Caching**: 1-minute TTL cache reduces redundant predictions
 - **Memory Efficient**: Automatic tensor disposal prevents memory leaks
 - **Fallback Support**: Uses rule-based defaults if models unavailable
+- **Optional Re-training**: Can retrain with custom data if needed
 
 ## Training Data
 
@@ -61,9 +65,11 @@ Training data includes realistic Minecraft gameplay scenarios:
 
 ## Usage
 
-### Enable ML Engine
+### Quick Start (Pre-Trained Models)
 
-Set environment variables in `.env`:
+The repository includes pre-trained models - you can start using them immediately!
+
+1. **Enable ML Engine** in `.env`:
 
 ```env
 ML_ENABLED=true
@@ -72,7 +78,17 @@ ML_DECISION_THRESHOLD=0.7
 ML_INFERENCE_TIMEOUT=50
 ```
 
-### Train Models
+2. **Start the bot** - Models load automatically:
+
+```bash
+npm start
+```
+
+That's it! The bot will use the pre-trained models for intelligent decision-making.
+
+### Optional: Re-train Models
+
+Only needed if you want to customize the training data or experiment with different scenarios.
 
 Generate training data and train all three models:
 
@@ -83,8 +99,10 @@ npm run train-models
 This will:
 1. Generate 5000 training samples with Minecraft-specific scenarios
 2. Train 3 neural networks with batch normalization and dropout
-3. Save models to `./models/` directory
+3. Save models to `./models/` directory (replacing pre-trained models)
 4. Display training metrics and validation accuracy
+
+**Note**: Re-training takes 2-3 minutes and will replace the existing pre-trained models.
 
 ### Training Output
 

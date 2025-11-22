@@ -7,12 +7,12 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 ### 🤖 Machine Learning Decision Engine ⭐ ENHANCED
 - **<50ms Local Inference**: TensorFlow.js-powered predictions without API calls ✅ **Achieved 11ms!**
 - **70% API Reduction**: Intelligent caching and offline capability
-- **Three Trained ML Models**: 
-  - **Action Predictor** (85% accuracy): Recommends optimal actions from 10 choices
+- **Pre-Trained Models Included**: Ready-to-use models - no training required! ✅
+  - **Action Predictor** (84% accuracy): Recommends optimal actions from 10 choices
   - **Resource Prioritizer** (97% accuracy): Intelligently ranks resources for gathering
-  - **Risk Assessor** (MAE 0.05): Evaluates danger levels with high precision
-- **Minecraft-Specific Training**: 5,000 samples based on realistic gameplay scenarios
-- **Auto-Training**: Run `npm run train-models` to train on Minecraft-specific data
+  - **Risk Assessor** (MAE 0.046): Evaluates danger levels with high precision
+- **Minecraft-Specific Training**: Pre-trained on 5,000 realistic gameplay scenarios
+- **Optional Re-Training**: Run `npm run train-models` to retrain with custom data
 - **Fully Documented**: See [ML_ENGINE.md](ML_ENGINE.md) for complete documentation
 
 ### 🖥️ React Web Dashboard
@@ -275,9 +275,18 @@ The bot sends concise, professional notifications for important events:
    MIN_FOOD_LEVEL=10
    ```
 
-4. **Train ML Models** ⭐ **RECOMMENDED**
+4. **Pre-Trained ML Models** ✅ **READY TO USE**
    
-   Train the machine learning models for intelligent decision-making:
+   The bot comes with **pre-trained ML models** - no training required!
+   
+   **Models included in the repository:**
+   - ✅ Action Predictor (84% accuracy)
+   - ✅ Resource Prioritizer (97% accuracy)  
+   - ✅ Risk Assessor (MAE 0.046)
+   
+   **Optional: Re-train models with custom data**
+   
+   Only needed if you want to customize the training data:
    
    ```bash
    npm run train-models
@@ -285,17 +294,9 @@ The bot sends concise, professional notifications for important events:
    
    This will:
    - Generate 5,000 Minecraft-specific training samples
-   - Train 3 neural networks (Action Predictor, Resource Prioritizer, Risk Assessor)
-   - Save models to `./models/` directory
+   - Train 3 neural networks from scratch
+   - Replace existing models in `./models/` directory
    - Takes ~2-3 minutes on modern hardware
-   
-   **Expected Output:**
-   ```
-   ✓ Action Predictor: 81-87% validation accuracy
-   ✓ Resource Prioritizer: 97-99% validation accuracy
-   ✓ Risk Assessor: MAE 0.05 (excellent)
-   ✓ Models saved to: ./models
-   ```
    
    See [ML_ENGINE.md](ML_ENGINE.md) for detailed ML documentation.
 
