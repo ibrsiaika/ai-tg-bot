@@ -17,10 +17,19 @@ A fully autonomous Minecraft robot built with Node.js and Mineflayer featuring *
 
 ### 🖥️ React Web Dashboard
 - **7 Real-Time Pages**: Dashboard, Map, Inventory, Systems, Analytics, Commands, Logs
-- **<100ms Updates**: Socket.IO real-time communication
+- **<100ms Updates**: Socket.IO real-time communication on port 3002
+- **Real-time Features**:
+  - Health & Food: Updated every physics tick (~50ms)
+  - Position: Updated on every movement
+  - Inventory: Updated every 5 seconds
+  - System Status: Updated every 10 seconds
+  - Game View: Updated every 60 seconds
+  - Chat Messages: Real-time bidirectional chat
+  - Action Logs: Instant notifications
 - **Professional UI**: React 18 + Tailwind CSS dark theme
 - **Mobile Responsive**: WCAG 2.1 AA compliant
 - **Live Command Execution**: Control your bot from the browser
+- **In-Game Chat**: Send and receive messages in real-time
 
 ### 🤖🤖🤖 Multi-Bot Coordination
 - **Coordinate up to 10 bots**: Work together on shared tasks
@@ -264,7 +273,8 @@ The bot sends concise, professional notifications for important events:
    # v4.1.0 Features (Optional - All disabled by default)
    ML_ENABLED=false                      # Enable ML decision engine
    DASHBOARD_ENABLED=false               # Enable web dashboard
-   SOCKETIO_ENABLED=false                # Enable real-time updates
+   SOCKETIO_ENABLED=true                 # Enable real-time updates (RECOMMENDED)
+    SOCKETIO_PORT=3002                    # Socket.IO server port
    MULTIBOT_ENABLED=false                # Enable multi-bot coordination
    ADVANCED_ANALYTICS_ENABLED=false      # Enable advanced analytics
    ECONOMY_TRACKING_ENABLED=false        # Enable resource valuation
@@ -318,10 +328,12 @@ The bot sends concise, professional notifications for important events:
    **Dashboard Features:**
    - ✅ **Fully Automated**: `npm install` sets up everything, `npm start` builds and runs
    - ✅ **Automatic Access**: Dashboard served at `http://localhost:3001` when you run the bot
-   - ✅ **Game View**: Live screenshots of bot's surroundings updated every minute
-   - ✅ **In-Game Chat**: Send messages to the bot in-game from the dashboard
-   - ✅ **Real-Time Stats**: Health, food, position, and inventory updates
-   - ✅ **System Monitoring**: View all 33 systems status in real-time
+   - ✅ **Real-Time Updates**: Socket.IO on port 3002 for <100ms updates
+   - ✅ **Game View**: Live view of bot's surroundings updated every minute
+   - ✅ **Bidirectional Chat**: Send and receive messages in real-time from the dashboard
+   - ✅ **Real-Time Stats**: Health, food, position, and inventory updates every 5 seconds
+   - ✅ **System Monitoring**: View all 33 systems status updated every 10 seconds
+   - ✅ **Live Logs**: Action logs and events appear instantly
 
 6. **Run the bot**
    
