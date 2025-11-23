@@ -300,20 +300,39 @@ The bot sends concise, professional notifications for important events:
    
    See [ML_ENGINE.md](ML_ENGINE.md) for detailed ML documentation.
 
-5. **Optional: Set up Web Dashboard**
+5. **Set up Web Dashboard (Recommended)**
+   
+   The bot includes an integrated web dashboard with real-time game view and chat functionality.
+   
+   **Build the frontend first:**
    ```bash
    cd frontend
    npm install
-   npm run dev  # Development server on http://localhost:3001
-   # OR
-   npm run build  # Production build
+   npm run build  # Creates production build in frontend/dist/
+   cd ..
    ```
+   
+   **Development mode (optional):**
+   ```bash
+   cd frontend
+   npm run dev  # Development server on http://localhost:3001
+   ```
+   
+   **Dashboard Features:**
+   - ✅ **Automatic Access**: Once built, dashboard is served at `http://localhost:3001` when you run the bot
+   - ✅ **Game View**: Live screenshots of bot's surroundings updated every minute
+   - ✅ **In-Game Chat**: Send messages to the bot in-game from the dashboard
+   - ✅ **Real-Time Stats**: Health, food, position, and inventory updates
+   - ✅ **System Monitoring**: View all 33 systems status in real-time
 
 6. **Run the bot**
    
    ```bash
    npm start
    ```
+   
+   The bot will automatically start the dashboard on port 3001 (or your configured `DASHBOARD_PORT`).
+   Access it at: **http://localhost:3001**
 
 ## ⚙️ Configuration
 
