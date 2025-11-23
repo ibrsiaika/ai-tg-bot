@@ -1,6 +1,64 @@
-import { Activity, Heart, Apple, Box, Zap } from 'lucide-react'
+import { Activity, Heart, Apple, Box, Zap, MessageSquare, Send } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export default function Dashboard({ data }) {
+  const [chatMessage, setChatMessage] = useState('')
+  const [chatHistory, setChatHistory] = useState([])
+  const [screenshotUrl, setScreenshotUrl] = useState(null)
+  const [screenshotData, setScreenshotData] = useState(null)
+
+  // Refresh screenshot every minute
+  useEffect(() => {
+    const refreshScreenshot = () => {
+      const timestamp = Date.now()
+      setScreenshotUrl(`/api/screenshot?t=${timestamp}`)
+    }
+
+    // Initial load
+    refreshScreenshot()
+
+    // Refresh every 60 seconds
+    const interval = setInterval(refreshScreenshot, 60000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Listen for screenshot updates from WebSocket
+  useEffect(() => {
+    if (data.screenshot) {
+      setScreenshotData(data.screenshot)
+      setScreenshotUrl(`/api/screenshot?t=${Date.now()}`)
+    }
+  }, [data.screenshot])
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    if (!chatMessage.trim()) return
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: chatMessage }),
+      })
+
+      if (response.ok) {
+        setChatHistory([...chatHistory, { 
+          type: 'sent', 
+          message: chatMessage, 
+          timestamp: new Date().toLocaleTimeString() 
+        }])
+        setChatMessage('')
+      } else {
+        console.error('Failed to send message')
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
+  }
+
   const stats = [
     {
       name: 'Health',
@@ -25,7 +83,7 @@ export default function Dashboard({ data }) {
     },
     {
       name: 'Status',
-      value: data.systems?.status || 'Idle',
+      value: data.currentGoal || 'Idle',
       icon: Activity,
       color: 'text-yellow-500',
       change: 'Active'
@@ -56,6 +114,88 @@ export default function Dashboard({ data }) {
             </div>
           )
         })}
+      </div>
+
+      {/* Two Column Layout for Screenshot and Chat */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Game View Screenshot */}
+        <div className="card">
+          <h3 className="text-xl font-bold text-white mb-4">Game View</h3>
+          <div className="bg-slate-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+            {screenshotUrl ? (
+              <img 
+                src={screenshotUrl} 
+                alt="Game View" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.target.style.display = 'none'
+                  e.target.nextSibling.style.display = 'flex'
+                }}
+              />
+            ) : null}
+            <div className="flex flex-col items-center justify-center text-slate-500 p-8" style={{ display: screenshotUrl ? 'none' : 'flex' }}>
+              <Box className="w-16 h-16 mb-4 opacity-50" />
+              <p className="text-sm">Loading game view...</p>
+              <p className="text-xs mt-2">Updates every minute</p>
+            </div>
+          </div>
+          {screenshotData && (
+            <div className="mt-3 text-xs text-slate-500">
+              Last updated: {new Date(screenshotData.timestamp).toLocaleTimeString()}
+            </div>
+          )}
+        </div>
+
+        {/* In-Game Chat */}
+        <div className="card flex flex-col h-[400px]">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            In-Game Chat
+          </h3>
+          
+          {/* Chat Messages */}
+          <div className="flex-1 bg-slate-900 rounded-lg p-4 mb-4 overflow-y-auto">
+            {chatHistory.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-slate-500">
+                <div className="text-center">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs mt-1">Send a message to chat in-game</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {chatHistory.map((msg, i) => (
+                  <div key={i} className="bg-slate-800 rounded p-2">
+                    <div className="flex justify-between items-start">
+                      <p className="text-slate-300 text-sm">{msg.message}</p>
+                      <span className="text-slate-500 text-xs ml-2">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Chat Input */}
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <input
+              type="text"
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              placeholder="Type a message to send in-game..."
+              className="flex-1 bg-slate-900 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              type="submit"
+              disabled={!chatMessage.trim()}
+              className="bg-primary-500 hover:bg-primary-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              Send
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Recent Activity */}
