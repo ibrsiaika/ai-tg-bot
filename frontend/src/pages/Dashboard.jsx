@@ -55,8 +55,9 @@ export default function Dashboard({ data }) {
       })
 
       if (response.ok) {
-        // Message sent successfully - don't need to update local state
-        // as the bot's own messages won't be echoed back
+        // Message sent successfully
+        // Note: Bot's own messages are filtered out by setupChatListener in dashboard.js,
+        // so we won't see our sent messages echoed back in the chat history
         setChatMessage('')
       } else {
         console.error('Failed to send message')

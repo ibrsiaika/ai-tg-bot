@@ -51,6 +51,7 @@ class AutonomousMinecraftBot {
         this.systems = {};
         this.errorCounts = new Map(); // Track error counts for rate limiting
         this.lastErrorTime = new Map(); // Track last error time for rate limiting
+        this.intervals = []; // Track all setInterval IDs for cleanup
     }
 
     /**
@@ -518,6 +519,8 @@ class AutonomousMinecraftBot {
         // NEW v4.1.0: Initialize Socket.IO Server for real-time dashboard updates
         this.systems.socketServer = new SocketIOServer();
         if (this.systems.socketServer.enabled) {
+            // Pass EventBus instance to Socket.IO Server
+            this.systems.socketServer.setEventBus(this.systems.eventBus);
             this.systems.socketServer.attachBot(this.bot);
             console.log('✓ Socket.IO Server initialized for real-time updates');
         }
@@ -606,7 +609,7 @@ class AutonomousMinecraftBot {
         if (!this.systems.eventBus) return;
 
         // Emit inventory updates every 5 seconds
-        setInterval(() => {
+        const inventoryInterval = setInterval(() => {
             if (this.bot && this.bot.inventory) {
                 const inventoryData = this.bot.inventory.items().map(item => ({
                     name: item.name,
@@ -616,9 +619,10 @@ class AutonomousMinecraftBot {
                 this.systems.eventBus.emit('bot:inventory', inventoryData);
             }
         }, 5000);
+        this.intervals.push(inventoryInterval);
 
         // Emit system status updates every 10 seconds
-        setInterval(() => {
+        const systemsInterval = setInterval(() => {
             const systemsStatus = {
                 behavior: this.systems.behavior?.isActive ? 'active' : 'idle',
                 mining: this.systems.mining ? 'online' : 'offline',
@@ -635,8 +639,30 @@ class AutonomousMinecraftBot {
             };
             this.systems.eventBus.emit('bot:systems', systemsStatus);
         }, 10000);
+        this.intervals.push(systemsInterval);
 
         console.log('✓ Real-time dashboard updates enabled');
+    }
+
+    /**
+     * Clean up all intervals to prevent memory leaks
+     */
+    cleanup() {
+        // Clear all setInterval timers
+        this.intervals.forEach(intervalId => clearInterval(intervalId));
+        this.intervals = [];
+        
+        // Stop dashboard
+        if (this.systems.dashboard) {
+            this.systems.dashboard.stop();
+        }
+        
+        // Close Socket.IO server
+        if (this.systems.socketServer) {
+            this.systems.socketServer.close();
+        }
+        
+        console.log('✓ Cleanup complete');
     }
 
 }
@@ -809,6 +835,12 @@ process.on('SIGINT', async () => {
     
     if (autonomousBot.systems && autonomousBot.systems.behavior) {
         autonomousBot.systems.behavior.stop();
+    }
+    
+    // Cleanup on shutdown (clears intervals, stops dashboard and socket server)
+    if (autonomousBot) {
+        console.log('Cleaning up systems...');
+        autonomousBot.cleanup();
     }
     
     if (autonomousBot.bot) {
