@@ -304,23 +304,19 @@ The bot sends concise, professional notifications for important events:
    
    The bot includes an integrated web dashboard with real-time game view and chat functionality.
    
-   **First time setup - Install frontend dependencies:**
+   **Everything happens automatically! Just run:**
    ```bash
-   cd frontend
-   npm install
-   cd ..
+   npm install  # Installs all dependencies including frontend (one-time)
+   npm start    # Builds frontend and starts bot (every time)
    ```
-   
-   **That's it! The frontend will auto-build when you run `npm start`**
    
    **Development mode (optional):**
    ```bash
-   cd frontend
-   npm run dev  # Development server on http://localhost:3001
+   npm run frontend:dev  # Start frontend dev server with hot reload
    ```
    
    **Dashboard Features:**
-   - ✅ **Automatic Build**: Frontend builds automatically when you run `npm start`
+   - ✅ **Fully Automated**: `npm install` sets up everything, `npm start` builds and runs
    - ✅ **Automatic Access**: Dashboard served at `http://localhost:3001` when you run the bot
    - ✅ **Game View**: Live screenshots of bot's surroundings updated every minute
    - ✅ **In-Game Chat**: Send messages to the bot in-game from the dashboard
@@ -330,7 +326,7 @@ The bot sends concise, professional notifications for important events:
 6. **Run the bot**
    
    ```bash
-   npm start  # This will auto-build the frontend and start the bot
+   npm start  # Auto-installs frontend deps, builds frontend, starts bot - all in one!
    ```
    
    The bot will automatically start the dashboard on port 3001 (or your configured `DASHBOARD_PORT`).

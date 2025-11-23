@@ -4,6 +4,7 @@
   "description": "Enterprise-grade autonomous Minecraft bot with ML engine, React dashboard, multi-bot coordination, and advanced analytics",
   "main": "index.js",
   "scripts": {
+    "postinstall": "cd frontend && npm install",
     "prestart": "npm run frontend:build",
     "start": "node index.js",
     "dev": "node index.js",
