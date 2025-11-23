@@ -14,12 +14,13 @@ export function useSocket() {
     inventory: [],
     systems: {},
     logs: [],
-    analytics: {}
+    analytics: {},
+    gameview: null
   })
 
   useEffect(() => {
     const socketInstance = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -53,6 +54,10 @@ export function useSocket() {
 
     socketInstance.on('bot:systems', (systems) => {
       setData(prev => ({ ...prev, systems }))
+    })
+
+    socketInstance.on('bot:gameview', (gameview) => {
+      setData(prev => ({ ...prev, gameview }))
     })
 
     socketInstance.on('bot:log', (log) => {

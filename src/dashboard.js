@@ -545,11 +545,16 @@ class Dashboard {
                 data: Buffer.from(JSON.stringify(viewData)).toString('base64')
             };
 
-            // Broadcast to connected clients
+            // Broadcast to connected clients via WebSocket
             this.broadcast({
                 type: 'gameview',
                 data: viewData
             });
+
+            // Also emit via EventBus for Socket.IO clients
+            if (this.systems.eventBus) {
+                this.systems.eventBus.emit('bot:gameview', viewData);
+            }
 
             this.log('info', 'Game view captured', { 
                 entities: viewData.nearbyEntities.length,

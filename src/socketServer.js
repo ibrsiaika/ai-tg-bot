@@ -70,6 +70,14 @@ class SocketIOServer {
             this.broadcast('bot:inventory', data);
         });
         
+        EventBus.on('bot:systems', (data) => {
+            this.broadcast('bot:systems', data);
+        });
+        
+        EventBus.on('bot:gameview', (data) => {
+            this.broadcast('bot:gameview', data);
+        });
+        
         EventBus.on('bot:action', (data) => {
             this.broadcast('bot:log', {
                 level: 'info',

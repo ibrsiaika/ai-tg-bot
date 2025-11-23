@@ -42,6 +42,7 @@ const OptimizationManager = require('./src/optimizationManager');
 const EventBus = require('./src/eventBus');
 const StorageSystem = require('./src/storage');
 const Dashboard = require('./src/dashboard');
+const SocketIOServer = require('./src/socketServer');
 
 class AutonomousMinecraftBot {
     constructor(config) {
@@ -514,6 +515,13 @@ class AutonomousMinecraftBot {
             });
         }
 
+        // NEW v4.1.0: Initialize Socket.IO Server for real-time dashboard updates
+        this.systems.socketServer = new SocketIOServer();
+        if (this.systems.socketServer.enabled) {
+            this.systems.socketServer.attachBot(this.bot);
+            console.log('✓ Socket.IO Server initialized for real-time updates');
+        }
+
         console.log('✓ All systems initialized (33 systems online)');
         await this.systems.notifier.send('🤖 ENTERPRISE v4.0.0: 33 AI systems online! NEW: Persistent Storage, Event Bus, Web Dashboard. Features: Hybrid Intelligence, Advanced Error Recovery, Performance Optimization, State Persistence. Beginning fully optimized autonomous operations with enterprise-grade monitoring.');
         
@@ -525,6 +533,9 @@ class AutonomousMinecraftBot {
                 timestamp: Date.now()
             });
         }
+        
+        // Set up periodic real-time updates for dashboard
+        this.startRealtimeUpdates();
         
         // Set initial long-term goals
         this.systems.intelligence.addLongTermGoal('Gather basic resources', 0.9, { wood: 64, stone: 128 });
@@ -587,6 +598,47 @@ class AutonomousMinecraftBot {
         
         console.log('✓ Periodic state saving enabled (every 5 minutes)');
     }
+
+    /**
+     * NEW v4.1.0: Send real-time updates to dashboard via EventBus
+     */
+    startRealtimeUpdates() {
+        if (!this.systems.eventBus) return;
+
+        // Emit inventory updates every 5 seconds
+        setInterval(() => {
+            if (this.bot && this.bot.inventory) {
+                const inventoryData = this.bot.inventory.items().map(item => ({
+                    name: item.name,
+                    count: item.count,
+                    slot: item.slot
+                }));
+                this.systems.eventBus.emit('bot:inventory', inventoryData);
+            }
+        }, 5000);
+
+        // Emit system status updates every 10 seconds
+        setInterval(() => {
+            const systemsStatus = {
+                behavior: this.systems.behavior?.isActive ? 'active' : 'idle',
+                mining: this.systems.mining ? 'online' : 'offline',
+                farming: this.systems.farming ? 'online' : 'offline',
+                combat: this.systems.combat ? 'online' : 'offline',
+                building: this.systems.building ? 'online' : 'offline',
+                gathering: this.systems.gathering ? 'online' : 'offline',
+                exploration: this.systems.exploration ? 'online' : 'offline',
+                telegram: this.systems.notifier?.enabled ? 'online' : 'offline',
+                mlEngine: process.env.ML_ENABLED === 'true' ? 'online' : 'offline',
+                socketIO: this.systems.socketServer?.enabled ? 'online' : 'offline',
+                dashboard: this.systems.dashboard ? 'online' : 'offline',
+                currentGoal: this.systems.behavior?.currentGoal?.name || 'idle'
+            };
+            this.systems.eventBus.emit('bot:systems', systemsStatus);
+        }, 10000);
+
+        console.log('✓ Real-time dashboard updates enabled');
+    }
+
 }
 
 // Main execution
