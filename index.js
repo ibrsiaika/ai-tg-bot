@@ -602,7 +602,7 @@ const config = {
     minFoodLevel: parseInt(process.env.MIN_FOOD_LEVEL) || CONSTANTS.SAFETY.DEFAULT_MIN_FOOD_LEVEL,
     // NEW v4.0.0 config options
     enableDashboard: process.env.ENABLE_DASHBOARD !== 'false', // Default enabled
-    dashboardPort: parseInt(process.env.DASHBOARD_PORT) || 3000
+    dashboardPort: parseInt(process.env.DASHBOARD_PORT) || 3001
 };
 
 // Validate configuration
