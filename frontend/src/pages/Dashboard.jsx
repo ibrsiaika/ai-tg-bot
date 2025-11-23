@@ -4,32 +4,40 @@ import { useState, useEffect } from 'react'
 export default function Dashboard({ data }) {
   const [chatMessage, setChatMessage] = useState('')
   const [chatHistory, setChatHistory] = useState([])
-  const [screenshotUrl, setScreenshotUrl] = useState(null)
-  const [screenshotData, setScreenshotData] = useState(null)
+  const [gameViewData, setGameViewData] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
 
-  // Refresh screenshot every minute
+  // Fetch game view data every minute
   useEffect(() => {
-    const refreshScreenshot = () => {
-      const timestamp = Date.now()
-      setScreenshotUrl(`/api/screenshot?t=${timestamp}`)
+    const fetchGameView = async () => {
+      try {
+        const response = await fetch('/api/gameview')
+        if (response.ok) {
+          const data = await response.json()
+          setGameViewData(data)
+          setLastUpdate(new Date(data.timestamp))
+        }
+      } catch (error) {
+        console.error('Failed to fetch game view:', error)
+      }
     }
 
     // Initial load
-    refreshScreenshot()
+    fetchGameView()
 
     // Refresh every 60 seconds
-    const interval = setInterval(refreshScreenshot, 60000)
+    const interval = setInterval(fetchGameView, 60000)
 
     return () => clearInterval(interval)
   }, [])
 
-  // Listen for screenshot updates from WebSocket
+  // Listen for game view updates from WebSocket
   useEffect(() => {
-    if (data.screenshot) {
-      setScreenshotData(data.screenshot)
-      setScreenshotUrl(`/api/screenshot?t=${Date.now()}`)
+    if (data.gameview) {
+      setGameViewData(data.gameview)
+      setLastUpdate(new Date(data.gameview.timestamp || Date.now()))
     }
-  }, [data.screenshot])
+  }, [data.gameview])
 
   const handleSendMessage = async (e) => {
     e.preventDefault()
@@ -116,32 +124,67 @@ export default function Dashboard({ data }) {
         })}
       </div>
 
-      {/* Two Column Layout for Screenshot and Chat */}
+      {/* Two Column Layout for Game View and Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Game View Screenshot */}
+        {/* Game View Data */}
         <div className="card">
-          <h3 className="text-xl font-bold text-white mb-4">Game View</h3>
-          <div className="bg-slate-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-            {screenshotUrl ? (
-              <img 
-                src={screenshotUrl} 
-                alt="Game View" 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none'
-                  e.target.nextSibling.style.display = 'flex'
-                }}
-              />
-            ) : null}
-            <div className="flex flex-col items-center justify-center text-slate-500 p-8" style={{ display: screenshotUrl ? 'none' : 'flex' }}>
-              <Box className="w-16 h-16 mb-4 opacity-50" />
-              <p className="text-sm">Loading game view...</p>
-              <p className="text-xs mt-2">Updates every minute</p>
-            </div>
+          <h3 className="text-xl font-bold text-white mb-4">Game Environment</h3>
+          <div className="bg-slate-900 rounded-lg p-4 max-h-[400px] overflow-y-auto">
+            {gameViewData ? (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-primary-400 font-semibold mb-2">Bot Position</h4>
+                  <p className="text-slate-300 text-sm font-mono">
+                    X: {Math.round(gameViewData.position.x)}, 
+                    Y: {Math.round(gameViewData.position.y)}, 
+                    Z: {Math.round(gameViewData.position.z)}
+                  </p>
+                </div>
+                
+                {gameViewData.nearbyEntities && gameViewData.nearbyEntities.length > 0 && (
+                  <div>
+                    <h4 className="text-primary-400 font-semibold mb-2">
+                      Nearby Entities ({gameViewData.nearbyEntities.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {gameViewData.nearbyEntities.slice(0, 5).map((entity, i) => (
+                        <div key={i} className="text-slate-300 text-sm flex justify-between">
+                          <span>{entity.type}</span>
+                          <span className="text-slate-500">{entity.distance}m away</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {gameViewData.nearbyBlocks && gameViewData.nearbyBlocks.length > 0 && (
+                  <div>
+                    <h4 className="text-primary-400 font-semibold mb-2">
+                      Nearby Blocks ({gameViewData.nearbyBlocks.length})
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Array.from(new Set(gameViewData.nearbyBlocks.map(b => b.name)))
+                        .slice(0, 8)
+                        .map((blockName, i) => (
+                          <div key={i} className="bg-slate-800 rounded px-2 py-1">
+                            <span className="text-slate-300 text-xs">{blockName}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-500 py-8">
+                <Box className="w-16 h-16 mb-4 opacity-50" />
+                <p className="text-sm">Loading game environment...</p>
+                <p className="text-xs mt-2">Updates every minute</p>
+              </div>
+            )}
           </div>
-          {screenshotData && (
+          {lastUpdate && (
             <div className="mt-3 text-xs text-slate-500">
-              Last updated: {new Date(screenshotData.timestamp).toLocaleTimeString()}
+              Last updated: {lastUpdate.toLocaleTimeString()}
             </div>
           )}
         </div>

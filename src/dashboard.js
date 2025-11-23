@@ -231,21 +231,21 @@ class Dashboard {
             }
         });
 
-        // Get latest screenshot
-        this.app.get('/api/screenshot', (req, res) => {
+        // Get latest game view data
+        this.app.get('/api/gameview', (req, res) => {
             try {
                 if (!this.latestScreenshot) {
-                    return res.status(404).json({ error: 'No screenshot available yet' });
+                    return res.status(404).json({ error: 'No game view data available yet' });
                 }
                 
-                // Send as base64 image
-                const img = Buffer.from(this.latestScreenshot.data, 'base64');
-                res.writeHead(200, {
-                    'Content-Type': 'image/png',
-                    'Content-Length': img.length,
-                    'Cache-Control': 'no-cache'
+                // Decode and send the JSON data
+                const jsonData = Buffer.from(this.latestScreenshot.data, 'base64').toString('utf-8');
+                const viewData = JSON.parse(jsonData);
+                
+                res.json({
+                    timestamp: this.latestScreenshot.timestamp,
+                    ...viewData
                 });
-                res.end(img);
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }
@@ -450,7 +450,7 @@ class Dashboard {
                 this.startStatusBroadcast();
 
                 // Start screenshot capture (every minute)
-                this.startScreenshotCapture();
+                this.startGameViewCapture();
 
             } catch (error) {
                 this.log('error', 'Failed to start dashboard', { error: error.message });
@@ -460,39 +460,37 @@ class Dashboard {
     }
 
     /**
-     * Capture screenshots periodically
+     * Capture game view data periodically
      */
-    startScreenshotCapture() {
-        // Capture screenshot every minute
+    startGameViewCapture() {
+        // Capture game view every minute
         this.screenshotInterval = setInterval(async () => {
             try {
-                await this.captureScreenshot();
+                await this.captureGameView();
             } catch (error) {
-                this.log('error', 'Failed to capture screenshot', { error: error.message });
+                this.log('error', 'Failed to capture game view', { error: error.message });
             }
         }, 60000); // Every 60 seconds (1 minute)
 
-        // Capture initial screenshot after 5 seconds
+        // Capture initial view after 5 seconds
         setTimeout(() => {
-            this.captureScreenshot().catch(err => {
-                this.log('warn', 'Initial screenshot failed', { error: err.message });
+            this.captureGameView().catch(err => {
+                this.log('warn', 'Initial game view capture failed', { error: err.message });
             });
         }, 5000);
     }
 
     /**
-     * Capture a screenshot of the bot's view
+     * Capture a snapshot of the bot's surroundings
      */
-    async captureScreenshot() {
+    async captureGameView() {
         if (!this.bot || !this.bot.entity) {
-            this.log('warn', 'Cannot capture screenshot - bot not ready');
+            this.log('warn', 'Cannot capture game view - bot not ready');
             return;
         }
 
         try {
-            // Create a simple text-based representation of the bot's surroundings
-            // Since mineflayer doesn't have built-in screenshot capability,
-            // we'll create a data snapshot instead
+            // Create a data snapshot of the bot's surroundings
             const viewData = {
                 timestamp: Date.now(),
                 position: this.bot.entity.position,
@@ -542,7 +540,7 @@ class Dashboard {
                 }
             }
 
-            // Store as base64 JSON data (we'll create a visual representation in the frontend)
+            // Store as base64 JSON data
             this.latestScreenshot = {
                 timestamp: Date.now(),
                 data: Buffer.from(JSON.stringify(viewData)).toString('base64')
@@ -550,16 +548,16 @@ class Dashboard {
 
             // Broadcast to connected clients
             this.broadcast({
-                type: 'screenshot',
-                data: this.latestScreenshot
+                type: 'gameview',
+                data: viewData
             });
 
-            this.log('info', 'Screenshot captured', { 
+            this.log('info', 'Game view captured', { 
                 entities: viewData.nearbyEntities.length,
                 blocks: viewData.nearbyBlocks.length
             });
         } catch (error) {
-            this.log('error', 'Screenshot capture failed', { error: error.message });
+            this.log('error', 'Game view capture failed', { error: error.message });
             throw error;
         }
     }
