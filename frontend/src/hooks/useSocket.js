@@ -15,7 +15,8 @@ export function useSocket() {
     systems: {},
     logs: [],
     analytics: {},
-    gameview: null
+    gameview: null,
+    chatMessages: []
   })
 
   useEffect(() => {
@@ -58,6 +59,13 @@ export function useSocket() {
 
     socketInstance.on('bot:gameview', (gameview) => {
       setData(prev => ({ ...prev, gameview }))
+    })
+
+    socketInstance.on('bot:chat', (chatMessage) => {
+      setData(prev => ({
+        ...prev,
+        chatMessages: [...prev.chatMessages.slice(-99), chatMessage]
+      }))
     })
 
     socketInstance.on('bot:log', (log) => {

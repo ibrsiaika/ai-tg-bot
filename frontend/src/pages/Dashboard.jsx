@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react'
 
 export default function Dashboard({ data }) {
   const [chatMessage, setChatMessage] = useState('')
-  const [chatHistory, setChatHistory] = useState([])
   const [gameViewData, setGameViewData] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
 
-  // Fetch game view data every minute
+  // Use incoming chat messages from Socket.IO
+  const chatHistory = data.chatMessages || []
+
+  // Fetch game view data every minute (fallback)
   useEffect(() => {
     const fetchGameView = async () => {
       try {
@@ -53,11 +55,8 @@ export default function Dashboard({ data }) {
       })
 
       if (response.ok) {
-        setChatHistory([...chatHistory, { 
-          type: 'sent', 
-          message: chatMessage, 
-          timestamp: new Date().toLocaleTimeString() 
-        }])
+        // Message sent successfully - don't need to update local state
+        // as the bot's own messages won't be echoed back
         setChatMessage('')
       } else {
         console.error('Failed to send message')
@@ -209,10 +208,15 @@ export default function Dashboard({ data }) {
             ) : (
               <div className="space-y-2">
                 {chatHistory.map((msg, i) => (
-                  <div key={i} className="bg-slate-800 rounded p-2">
-                    <div className="flex justify-between items-start">
-                      <p className="text-slate-300 text-sm">{msg.message}</p>
-                      <span className="text-slate-500 text-xs ml-2">{msg.timestamp}</span>
+                  <div key={i} className="bg-slate-800 rounded p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <span className="text-primary-400 font-semibold">{msg.username || 'Player'}</span>
+                        <p className="text-slate-300 mt-1 text-sm">{msg.message}</p>
+                      </div>
+                      <span className="text-xs text-slate-500 ml-2">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
                     </div>
                   </div>
                 ))}

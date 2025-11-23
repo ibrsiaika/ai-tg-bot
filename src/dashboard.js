@@ -451,11 +451,47 @@ class Dashboard {
                 // Start screenshot capture (every minute)
                 this.startGameViewCapture();
 
+                // Listen for chat messages from the game
+                this.setupChatListener();
+
             } catch (error) {
                 this.log('error', 'Failed to start dashboard', { error: error.message });
                 reject(error);
             }
         });
+    }
+
+    /**
+     * Listen for chat messages from the game and broadcast to clients
+     */
+    setupChatListener() {
+        if (!this.bot) return;
+
+        this.bot.on('chat', (username, message) => {
+            // Don't echo messages from the bot itself
+            if (username === this.bot.username) return;
+
+            const chatMessage = {
+                username,
+                message,
+                timestamp: new Date().toISOString()
+            };
+
+            // Broadcast to WebSocket clients
+            this.broadcast({
+                type: 'chat',
+                data: chatMessage
+            });
+
+            // Also emit via EventBus for Socket.IO clients
+            if (this.systems.eventBus) {
+                this.systems.eventBus.emit('bot:chat', chatMessage);
+            }
+
+            this.log('info', 'Chat message received', { username, message });
+        });
+
+        console.log('✓ Chat listener initialized');
     }
 
     /**
