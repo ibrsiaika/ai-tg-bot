@@ -52,11 +52,8 @@ class Dashboard {
             // Handle client-side routing - serve index.html for all non-API routes
             // Note: Rate limiting not applied to static file serving as this is a local dashboard
             // If exposing publicly, consider adding express-rate-limit middleware
-            this.app.get('*', (req, res, next) => {
-                // Skip API routes
-                if (req.path.startsWith('/api/')) {
-                    return next();
-                }
+            // Using regex to match all paths except /api/* routes (compatible with path-to-regexp v8+)
+            this.app.get(/^\/(?!api\/).*$/, (req, res) => {
                 res.sendFile(path.join(frontendBuildPath, 'index.html'));
             });
             
