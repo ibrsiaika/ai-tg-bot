@@ -21,7 +21,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     // Disable source maps in production to reduce memory usage during build
-    sourcemap: false,
+    // Enable in development for better debugging experience
+    sourcemap: process.env.NODE_ENV === 'development',
     // Optimize chunk size to reduce memory pressure
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
