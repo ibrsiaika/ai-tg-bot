@@ -20,6 +20,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Disable source maps in production to reduce memory usage during build
+    // Enable in development for better debugging experience
+    sourcemap: process.env.NODE_ENV === 'development',
+    // Optimize chunk size to reduce memory pressure
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor': ['recharts'],
+          'socket-vendor': ['socket.io-client'],
+        },
+      },
+    },
   },
 })
