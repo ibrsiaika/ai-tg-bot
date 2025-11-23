@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { io } from 'socket.io-client'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3002'
+const MAX_CHAT_HISTORY = 99 // Maximum number of chat messages to keep in memory
+const MAX_LOG_HISTORY = 99  // Maximum number of log entries to keep in memory
 
 export function useSocket() {
   const [socket, setSocket] = useState(null)
@@ -14,12 +16,14 @@ export function useSocket() {
     inventory: [],
     systems: {},
     logs: [],
-    analytics: {}
+    analytics: {},
+    gameview: null,
+    chatMessages: []
   })
 
   useEffect(() => {
     const socketInstance = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -55,10 +59,21 @@ export function useSocket() {
       setData(prev => ({ ...prev, systems }))
     })
 
+    socketInstance.on('bot:gameview', (gameview) => {
+      setData(prev => ({ ...prev, gameview }))
+    })
+
+    socketInstance.on('bot:chat', (chatMessage) => {
+      setData(prev => ({
+        ...prev,
+        chatMessages: [...prev.chatMessages.slice(-MAX_CHAT_HISTORY), chatMessage]
+      }))
+    })
+
     socketInstance.on('bot:log', (log) => {
       setData(prev => ({
         ...prev,
-        logs: [...prev.logs.slice(-99), log]
+        logs: [...prev.logs.slice(-MAX_LOG_HISTORY), log]
       }))
     })
 

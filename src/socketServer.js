@@ -4,7 +4,6 @@
  */
 
 const { Server } = require('socket.io');
-const EventBus = require('./eventBus');
 
 class SocketIOServer {
     constructor(options = {}) {
@@ -12,6 +11,7 @@ class SocketIOServer {
         this.port = parseInt(process.env.SOCKETIO_PORT) || 3002;
         this.io = null;
         this.bot = null;
+        this.eventBus = null; // Will be set via setEventBus
         
         if (this.enabled) {
             this.initialize();
@@ -29,13 +29,20 @@ class SocketIOServer {
             });
             
             this.setupEventHandlers();
-            this.setupBotListeners();
             
             console.log(`[Socket.IO] ✓ Server running on port ${this.port}`);
         } catch (error) {
             console.error('[Socket.IO] Initialization error:', error.message);
             this.enabled = false;
         }
+    }
+    
+    /**
+     * Set the EventBus instance for listening to events
+     */
+    setEventBus(eventBus) {
+        this.eventBus = eventBus;
+        this.setupBotListeners();
     }
     
     setupEventHandlers() {
@@ -57,20 +64,38 @@ class SocketIOServer {
     }
     
     setupBotListeners() {
-        // Listen to bot events via EventBus
-        EventBus.on('bot:health', (data) => {
+        // Don't set up listeners if EventBus is not set yet
+        if (!this.eventBus) {
+            console.log('[Socket.IO] Waiting for EventBus to be set...');
+            return;
+        }
+        
+        // Listen to bot events via EventBus instance
+        this.eventBus.on('bot:health', (data) => {
             this.broadcast('bot:health', data);
         });
         
-        EventBus.on('bot:position', (data) => {
+        this.eventBus.on('bot:position', (data) => {
             this.broadcast('bot:position', data);
         });
         
-        EventBus.on('bot:inventory', (data) => {
+        this.eventBus.on('bot:inventory', (data) => {
             this.broadcast('bot:inventory', data);
         });
         
-        EventBus.on('bot:action', (data) => {
+        this.eventBus.on('bot:systems', (data) => {
+            this.broadcast('bot:systems', data);
+        });
+        
+        this.eventBus.on('bot:gameview', (data) => {
+            this.broadcast('bot:gameview', data);
+        });
+        
+        this.eventBus.on('bot:chat', (data) => {
+            this.broadcast('bot:chat', data);
+        });
+        
+        this.eventBus.on('bot:action', (data) => {
             this.broadcast('bot:log', {
                 level: 'info',
                 message: `Action: ${data.action}`,
@@ -78,7 +103,7 @@ class SocketIOServer {
             });
         });
         
-        EventBus.on('ml:prediction', (data) => {
+        this.eventBus.on('ml:prediction', (data) => {
             this.broadcast('bot:log', {
                 level: 'debug',
                 message: `ML Prediction: ${data.result?.action} (${Math.round(data.result?.confidence * 100)}%)`,
@@ -86,23 +111,25 @@ class SocketIOServer {
             });
         });
         
-        EventBus.on('bot:error', (data) => {
+        this.eventBus.on('bot:error', (data) => {
             this.broadcast('bot:log', {
                 level: 'error',
                 message: data.message,
                 timestamp: new Date().toISOString()
             });
         });
+        
+        console.log('[Socket.IO] Event listeners registered');
     }
     
     attachBot(bot) {
         this.bot = bot;
         
-        if (!this.enabled || !bot) return;
+        if (!this.enabled || !bot || !this.eventBus) return;
         
-        // Set up bot event listeners
+        // Set up bot event listeners to emit to EventBus
         bot.on('health', () => {
-            EventBus.emit('bot:health', {
+            this.eventBus.emit('bot:health', {
                 value: bot.health / 20,
                 food: bot.food / 20
             });
@@ -110,7 +137,7 @@ class SocketIOServer {
         
         bot.on('move', () => {
             if (bot.entity) {
-                EventBus.emit('bot:position', bot.entity.position);
+                this.eventBus.emit('bot:position', bot.entity.position);
             }
         });
         
@@ -187,7 +214,9 @@ class SocketIOServer {
         }
         
         // Emit command event for bot systems to handle
-        EventBus.emit('dashboard:command', data);
+        if (this.eventBus) {
+            this.eventBus.emit('dashboard:command', data);
+        }
         
         socket.emit('command:success', {
             command: data.command,
