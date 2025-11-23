@@ -3,6 +3,8 @@ const cors = require('cors');
 const WebSocket = require('ws');
 const http = require('http');
 const winston = require('winston');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Enhanced Logging & Monitoring Dashboard
@@ -19,6 +21,8 @@ class Dashboard {
         this.clients = new Set();
         this.logBuffer = [];
         this.maxLogBufferSize = 1000;
+        this.latestScreenshot = null;
+        this.screenshotInterval = null;
         
         // Initialize winston logger
         this.initializeLogger();
@@ -29,6 +33,38 @@ class Dashboard {
         
         // Setup routes
         this.setupRoutes();
+        
+        // Serve static frontend files
+        this.serveStaticFiles();
+    }
+
+    /**
+     * Serve static frontend files
+     */
+    serveStaticFiles() {
+        const frontendBuildPath = path.join(__dirname, '../frontend/dist');
+        
+        // Check if build directory exists
+        if (fs.existsSync(frontendBuildPath)) {
+            // Serve static files from the frontend build
+            this.app.use(express.static(frontendBuildPath));
+            
+            // Handle client-side routing - serve index.html for all non-API routes
+            // Note: Rate limiting not applied to static file serving as this is a local dashboard
+            // If exposing publicly, consider adding express-rate-limit middleware
+            this.app.get('*', (req, res, next) => {
+                // Skip API routes
+                if (req.path.startsWith('/api/')) {
+                    return next();
+                }
+                res.sendFile(path.join(frontendBuildPath, 'index.html'));
+            });
+            
+            console.log('✓ Serving frontend from:', frontendBuildPath);
+        } else {
+            console.warn('⚠ Frontend build not found. Run "cd frontend && npm run build" to build the frontend.');
+            console.warn('  Frontend path:', frontendBuildPath);
+        }
     }
 
     /**
@@ -194,6 +230,48 @@ class Dashboard {
                 });
             } catch (error) {
                 res.status(500).json({ error: error.message });
+            }
+        });
+
+        // Get latest game view data
+        this.app.get('/api/gameview', (req, res) => {
+            try {
+                if (!this.latestScreenshot) {
+                    return res.status(404).json({ error: 'No game view data available yet' });
+                }
+                
+                // Decode and send the JSON data
+                const jsonData = Buffer.from(this.latestScreenshot.data, 'base64').toString('utf-8');
+                const viewData = JSON.parse(jsonData);
+                
+                res.json({
+                    timestamp: this.latestScreenshot.timestamp,
+                    ...viewData
+                });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // Send chat message to bot
+        this.app.post('/api/chat', async (req, res) => {
+            try {
+                const { message } = req.body;
+                if (!message) {
+                    return res.status(400).json({ error: 'Message is required' });
+                }
+                
+                if (!this.bot) {
+                    return res.status(503).json({ error: 'Bot not connected' });
+                }
+                
+                // Send message in game
+                this.bot.chat(message);
+                
+                this.log('info', 'Chat message sent', { message });
+                res.json({ success: true, message: 'Message sent' });
+            } catch (error) {
+                res.status(500).json({ success: false, error: error.message });
             }
         });
     }
@@ -373,11 +451,117 @@ class Dashboard {
                 // Start periodic status broadcasts
                 this.startStatusBroadcast();
 
+                // Start screenshot capture (every minute)
+                this.startGameViewCapture();
+
             } catch (error) {
                 this.log('error', 'Failed to start dashboard', { error: error.message });
                 reject(error);
             }
         });
+    }
+
+    /**
+     * Capture game view data periodically
+     */
+    startGameViewCapture() {
+        // Capture game view every minute
+        this.screenshotInterval = setInterval(async () => {
+            try {
+                await this.captureGameView();
+            } catch (error) {
+                this.log('error', 'Failed to capture game view', { error: error.message });
+            }
+        }, 60000); // Every 60 seconds (1 minute)
+
+        // Capture initial view after 5 seconds
+        setTimeout(() => {
+            this.captureGameView().catch(err => {
+                this.log('warn', 'Initial game view capture failed', { error: err.message });
+            });
+        }, 5000);
+    }
+
+    /**
+     * Capture a snapshot of the bot's surroundings
+     */
+    async captureGameView() {
+        if (!this.bot || !this.bot.entity) {
+            this.log('warn', 'Cannot capture game view - bot not ready');
+            return;
+        }
+
+        try {
+            // Create a data snapshot of the bot's surroundings
+            const viewData = {
+                timestamp: Date.now(),
+                position: this.bot.entity.position,
+                health: this.bot.health,
+                food: this.bot.food,
+                nearbyEntities: [],
+                nearbyBlocks: []
+            };
+
+            // Get nearby entities
+            const entities = Object.values(this.bot.entities);
+            for (const entity of entities.slice(0, 10)) {
+                if (entity !== this.bot.entity && entity.position) {
+                    const distance = this.bot.entity.position.distanceTo(entity.position);
+                    if (distance < 20) {
+                        viewData.nearbyEntities.push({
+                            type: entity.name || entity.type,
+                            distance: Math.round(distance),
+                            position: {
+                                x: Math.round(entity.position.x),
+                                y: Math.round(entity.position.y),
+                                z: Math.round(entity.position.z)
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Get blocks around the bot
+            const pos = this.bot.entity.position;
+            const radius = 5;
+            for (let x = -radius; x <= radius; x++) {
+                for (let y = -2; y <= 2; y++) {
+                    for (let z = -radius; z <= radius; z++) {
+                        const block = this.bot.blockAt(pos.offset(x, y, z));
+                        if (block && block.name !== 'air') {
+                            viewData.nearbyBlocks.push({
+                                name: block.name,
+                                position: {
+                                    x: Math.round(block.position.x),
+                                    y: Math.round(block.position.y),
+                                    z: Math.round(block.position.z)
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Store as base64 JSON data
+            this.latestScreenshot = {
+                timestamp: Date.now(),
+                data: Buffer.from(JSON.stringify(viewData)).toString('base64')
+            };
+
+            // Broadcast to connected clients
+            this.broadcast({
+                type: 'gameview',
+                data: viewData
+            });
+
+            this.log('info', 'Game view captured', { 
+                entities: viewData.nearbyEntities.length,
+                blocks: viewData.nearbyBlocks.length
+            });
+        } catch (error) {
+            this.log('error', 'Game view capture failed', { error: error.message });
+            throw error;
+        }
     }
 
     /**
@@ -410,6 +594,10 @@ class Dashboard {
      * Stop the dashboard server
      */
     stop() {
+        if (this.screenshotInterval) {
+            clearInterval(this.screenshotInterval);
+            this.screenshotInterval = null;
+        }
         if (this.wss) {
             this.wss.close();
         }
