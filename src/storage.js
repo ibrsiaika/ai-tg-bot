@@ -19,6 +19,11 @@ class StorageSystem {
         };
         this.isInitialized = false;
         this.useMemoryOnly = false;
+        
+        // Memory limits to prevent memory leaks in fallback mode
+        this.MAX_EXPLORATION_DATA = 100;
+        this.MAX_DECISION_HISTORY = 500;
+        this.MAX_PERFORMANCE_METRICS = 500;
     }
 
     /**
@@ -217,6 +222,10 @@ class StorageSystem {
 
         try {
             if (this.useMemoryOnly) {
+                // Limit exploration data to prevent memory leak
+                if (this.memoryFallback.explorationData.length >= this.MAX_EXPLORATION_DATA) {
+                    this.memoryFallback.explorationData.shift();
+                }
                 this.memoryFallback.explorationData.push({
                     chunkX, chunkZ, ...data, timestamp: Date.now()
                 });
@@ -243,6 +252,10 @@ class StorageSystem {
             return true;
         } catch (error) {
             console.warn('⚠ Failed to save exploration data:', error.message);
+            // Limit exploration data to prevent memory leak
+            if (this.memoryFallback.explorationData.length >= this.MAX_EXPLORATION_DATA) {
+                this.memoryFallback.explorationData.shift();
+            }
             this.memoryFallback.explorationData.push({
                 chunkX, chunkZ, ...data, timestamp: Date.now()
             });
@@ -296,6 +309,10 @@ class StorageSystem {
 
         try {
             if (this.useMemoryOnly) {
+                // Limit decision history to prevent memory leak
+                if (this.memoryFallback.decisionHistory.length >= this.MAX_DECISION_HISTORY) {
+                    this.memoryFallback.decisionHistory.shift();
+                }
                 this.memoryFallback.decisionHistory.push({
                     ...decision, timestamp: Date.now()
                 });
@@ -323,6 +340,10 @@ class StorageSystem {
             return true;
         } catch (error) {
             console.warn('⚠ Failed to save decision:', error.message);
+            // Limit decision history to prevent memory leak
+            if (this.memoryFallback.decisionHistory.length >= this.MAX_DECISION_HISTORY) {
+                this.memoryFallback.decisionHistory.shift();
+            }
             this.memoryFallback.decisionHistory.push({
                 ...decision, timestamp: Date.now()
             });
@@ -395,6 +416,10 @@ class StorageSystem {
 
         try {
             if (this.useMemoryOnly) {
+                // Limit performance metrics to prevent memory leak
+                if (this.memoryFallback.performanceMetrics.length >= this.MAX_PERFORMANCE_METRICS) {
+                    this.memoryFallback.performanceMetrics.shift();
+                }
                 this.memoryFallback.performanceMetrics.push({
                     type, value, metadata, timestamp: Date.now()
                 });
@@ -417,6 +442,10 @@ class StorageSystem {
             return true;
         } catch (error) {
             console.warn('⚠ Failed to save metric:', error.message);
+            // Limit performance metrics to prevent memory leak
+            if (this.memoryFallback.performanceMetrics.length >= this.MAX_PERFORMANCE_METRICS) {
+                this.memoryFallback.performanceMetrics.shift();
+            }
             this.memoryFallback.performanceMetrics.push({
                 type, value, metadata, timestamp: Date.now()
             });

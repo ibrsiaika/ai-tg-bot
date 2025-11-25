@@ -9,19 +9,20 @@ class EventBus extends EventEmitter {
         super();
         this.setMaxListeners(50); // Support many systems
         this.eventHistory = [];
-        this.maxHistorySize = 1000;
+        this.maxHistorySize = 500; // Reduced from 1000 to save memory
         this.listeners = new Map(); // Track listeners for debugging
+        this.MAX_LISTENER_TYPES = 100; // Limit event types tracked
     }
 
     /**
      * Emit an event and store in history
      */
     emit(eventName, ...args) {
-        // Store in history
+        // Store in history - store first argument only to avoid memory issues
         this.eventHistory.push({
             event: eventName,
             timestamp: Date.now(),
-            data: args[0] // Store first argument only to avoid memory issues
+            data: args[0] // Store first argument only
         });
 
         // Trim history if too large
@@ -37,10 +38,26 @@ class EventBus extends EventEmitter {
      * Register event listener with tracking
      */
     on(eventName, listener) {
+        // Limit tracked event types to prevent memory leak
         if (!this.listeners.has(eventName)) {
+            if (this.listeners.size >= this.MAX_LISTENER_TYPES) {
+                // Remove an event type with no listeners
+                for (const [key, value] of this.listeners) {
+                    if (!value || value.length === 0) {
+                        this.listeners.delete(key);
+                        break;
+                    }
+                }
+            }
             this.listeners.set(eventName, []);
         }
-        this.listeners.get(eventName).push(listener.name || 'anonymous');
+        
+        const listenerList = this.listeners.get(eventName);
+        // Limit listeners tracked per event
+        if (listenerList.length < 20) {
+            listenerList.push(listener.name || 'anonymous');
+        }
+        
         return super.on(eventName, listener);
     }
 

@@ -18,10 +18,12 @@ class AdvancedPathfinding {
         // Waypoint shortcuts
         this.waypoints = new Map(); // key: waypointName, value: position
         this.waypointShortcuts = new Map(); // Pre-calculated routes between waypoints
+        this.MAX_WAYPOINTS = 50; // Limit waypoints to prevent memory leak
         
         // Chunk-based pathfinding
         this.CHUNK_SIZE = 16;
         this.visitedChunks = new Set();
+        this.MAX_VISITED_CHUNKS = 500; // Limit visited chunks to prevent memory leak
         
         // Timeout prediction
         this.pathfindingTimeouts = 0;
@@ -63,6 +65,17 @@ class AdvancedPathfinding {
      */
     markChunkVisited(position) {
         const key = this.getChunkKey(position);
+        
+        // Limit visited chunks to prevent memory leak
+        if (this.visitedChunks.size >= this.MAX_VISITED_CHUNKS) {
+            // Remove oldest entries (first in Set)
+            const iterator = this.visitedChunks.values();
+            for (let i = 0; i < Math.floor(this.MAX_VISITED_CHUNKS * 0.2); i++) {
+                const oldest = iterator.next().value;
+                this.visitedChunks.delete(oldest);
+            }
+        }
+        
         this.visitedChunks.add(key);
     }
     
@@ -78,6 +91,19 @@ class AdvancedPathfinding {
      * Add waypoint for quick navigation
      */
     addWaypoint(name, position) {
+        // Limit waypoints to prevent memory leak
+        if (this.waypoints.size >= this.MAX_WAYPOINTS) {
+            // Remove oldest entry
+            const firstKey = this.waypoints.keys().next().value;
+            this.waypoints.delete(firstKey);
+            // Also clean up shortcuts related to this waypoint
+            for (const [key, _] of this.waypointShortcuts) {
+                if (key.includes(firstKey)) {
+                    this.waypointShortcuts.delete(key);
+                }
+            }
+        }
+        
         this.waypoints.set(name, position.clone());
         console.log(`Waypoint added: ${name} at ${position.toString()}`);
     }
