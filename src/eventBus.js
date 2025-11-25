@@ -41,11 +41,20 @@ class EventBus extends EventEmitter {
         // Limit tracked event types to prevent memory leak
         if (!this.listeners.has(eventName)) {
             if (this.listeners.size >= this.MAX_LISTENER_TYPES) {
-                // Remove an event type with no listeners
+                // Try to remove an event type with no listeners
+                let removed = false;
                 for (const [key, value] of this.listeners) {
                     if (!value || value.length === 0) {
                         this.listeners.delete(key);
+                        removed = true;
                         break;
+                    }
+                }
+                // Fallback: remove first entry if no empty ones found
+                if (!removed && this.listeners.size >= this.MAX_LISTENER_TYPES) {
+                    const firstKey = this.listeners.keys().next().value;
+                    if (firstKey) {
+                        this.listeners.delete(firstKey);
                     }
                 }
             }

@@ -272,11 +272,15 @@ class ExplorationSystem {
         
         // Limit visited locations to prevent memory leak
         if (this.visitedLocations.size >= MAX_VISITED_LOCATIONS) {
-            // Remove oldest entries (first in Set)
+            // Remove 20% of entries to make room
+            // Sets maintain insertion order in ES6+, so this removes older entries
             const iterator = this.visitedLocations.values();
-            for (let i = 0; i < Math.floor(MAX_VISITED_LOCATIONS * 0.2); i++) {
-                const oldest = iterator.next().value;
-                this.visitedLocations.delete(oldest);
+            const entriesToRemove = Math.floor(MAX_VISITED_LOCATIONS * 0.2);
+            for (let i = 0; i < entriesToRemove; i++) {
+                const entry = iterator.next();
+                if (!entry.done) {
+                    this.visitedLocations.delete(entry.value);
+                }
             }
         }
         
@@ -610,11 +614,15 @@ class ExplorationSystem {
         
         // Limit explored chunks to prevent memory leak
         if (this.exploredChunks.size >= MAX_EXPLORED_CHUNKS) {
-            // Remove oldest entries (first in Set)
+            // Remove 20% of entries to make room
+            // Sets maintain insertion order in ES6+, so this removes older entries
             const iterator = this.exploredChunks.values();
-            for (let i = 0; i < Math.floor(MAX_EXPLORED_CHUNKS * 0.2); i++) {
-                const oldest = iterator.next().value;
-                this.exploredChunks.delete(oldest);
+            const entriesToRemove = Math.floor(MAX_EXPLORED_CHUNKS * 0.2);
+            for (let i = 0; i < entriesToRemove; i++) {
+                const entry = iterator.next();
+                if (!entry.done) {
+                    this.exploredChunks.delete(entry.value);
+                }
             }
         }
         

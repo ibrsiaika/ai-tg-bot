@@ -68,11 +68,15 @@ class AdvancedPathfinding {
         
         // Limit visited chunks to prevent memory leak
         if (this.visitedChunks.size >= this.MAX_VISITED_CHUNKS) {
-            // Remove oldest entries (first in Set)
+            // Remove 20% of entries to make room
+            // Sets maintain insertion order in ES6+, so this removes older entries
             const iterator = this.visitedChunks.values();
-            for (let i = 0; i < Math.floor(this.MAX_VISITED_CHUNKS * 0.2); i++) {
-                const oldest = iterator.next().value;
-                this.visitedChunks.delete(oldest);
+            const entriesToRemove = Math.floor(this.MAX_VISITED_CHUNKS * 0.2);
+            for (let i = 0; i < entriesToRemove; i++) {
+                const entry = iterator.next();
+                if (!entry.done) {
+                    this.visitedChunks.delete(entry.value);
+                }
             }
         }
         

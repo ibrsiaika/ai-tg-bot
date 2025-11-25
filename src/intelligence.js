@@ -378,7 +378,8 @@ class IntelligenceSystem {
             if (incompleteGoals.length < this.longTermGoals.length) {
                 this.longTermGoals = incompleteGoals;
             } else {
-                // Remove lowest priority goal
+                // Sort first, then remove lowest priority goal (last in sorted array)
+                this.longTermGoals.sort((a, b) => b.priority - a.priority);
                 this.longTermGoals.pop();
             }
         }
