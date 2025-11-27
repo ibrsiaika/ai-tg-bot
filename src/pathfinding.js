@@ -452,6 +452,59 @@ class AdvancedPathfinding {
     }
     
     /**
+     * v4.2.0: Helper to check if a block is solid
+     * Uses multiple checks for compatibility across Minecraft versions
+     * @param {Object} block - Block to check
+     * @returns {boolean} True if block is solid
+     */
+    isBlockSolid(block) {
+        if (!block) return false;
+        
+        // Try boundingBox first (most reliable for modern versions)
+        if (block.boundingBox !== undefined) {
+            return block.boundingBox === 'block';
+        }
+        
+        // Fallback to diggable check
+        if (block.diggable !== undefined) {
+            return block.diggable;
+        }
+        
+        // Last resort: check if block has hardness (solid blocks typically do)
+        return block.hardness !== undefined && block.hardness !== null && block.hardness >= 0;
+    }
+    
+    /**
+     * v4.2.0: Helper to check if a block is empty/passable
+     * @param {Object} block - Block to check
+     * @returns {boolean} True if block is empty/passable
+     */
+    isBlockEmpty(block) {
+        if (!block) return true;
+        
+        // Try boundingBox first
+        if (block.boundingBox !== undefined) {
+            return block.boundingBox === 'empty';
+        }
+        
+        // Fallback: check if air or similar
+        const emptyBlocks = ['air', 'cave_air', 'void_air'];
+        return emptyBlocks.includes(block.name);
+    }
+    
+    /**
+     * v4.2.0: Get list of dangerous block names from terrain costs
+     * Derives dangerous blocks from terrain costs above threshold
+     * @param {number} threshold - Cost threshold for dangerous blocks (default: 50)
+     * @returns {string[]} Array of dangerous block names
+     */
+    getDangerousBlockNames(threshold = 50) {
+        return Object.entries(this.terrainCosts)
+            .filter(([name, cost]) => typeof cost === 'number' && cost >= threshold && name !== 'default')
+            .map(([name]) => name);
+    }
+    
+    /**
      * v4.2.0: Smooth a path by removing unnecessary waypoints
      * Uses line-of-sight checks to skip intermediate points
      * @param {Vec3[]} path - Original path waypoints
@@ -481,7 +534,6 @@ class AdvancedPathfinding {
         }
         
         this.stats.smoothedPaths++;
-        console.log(`Path smoothed: ${path.length} -> ${smoothed.length} waypoints`);
         
         return smoothed;
     }
@@ -507,13 +559,13 @@ class AdvancedPathfinding {
             const block = this.bot.blockAt(checkPos);
             
             // Check if block is solid (blocking line of sight)
-            if (block && block.boundingBox === 'block') {
+            if (this.isBlockSolid(block)) {
                 return false;
             }
             
             // Check the block above (for head clearance)
             const aboveBlock = this.bot.blockAt(checkPos.offset(0, 1, 0));
-            if (aboveBlock && aboveBlock.boundingBox === 'block') {
+            if (this.isBlockSolid(aboveBlock)) {
                 return false;
             }
         }
@@ -567,9 +619,9 @@ class AdvancedPathfinding {
                 const above2 = this.bot.blockAt(checkPos.offset(0, 2, 0));
                 
                 // Position must be solid ground with 2 blocks clearance
-                if (block && block.boundingBox === 'block' &&
-                    above && above.boundingBox === 'empty' &&
-                    above2 && above2.boundingBox === 'empty') {
+                if (this.isBlockSolid(block) &&
+                    this.isBlockEmpty(above) &&
+                    this.isBlockEmpty(above2)) {
                     
                     if (cost < bestCost) {
                         bestCost = cost;
@@ -605,14 +657,17 @@ class AdvancedPathfinding {
     
     /**
      * v4.2.0: Get dangerous blocks nearby
+     * Uses terrain costs to dynamically determine dangerous blocks
      * @param {number} radius - Search radius
+     * @param {number} dangerThreshold - Cost threshold for dangerous blocks (default: 50)
      * @returns {Object[]} Array of dangerous block positions with threat levels
      */
-    getDangerousBlocksNearby(radius = 10) {
+    getDangerousBlocksNearby(radius = 10, dangerThreshold = 50) {
         const dangers = [];
         const pos = this.bot.entity.position;
         
-        const dangerousBlocks = ['lava', 'fire', 'magma_block', 'cactus'];
+        // Get dangerous block names from terrain costs
+        const dangerousBlocks = this.getDangerousBlockNames(dangerThreshold);
         
         for (let dx = -radius; dx <= radius; dx++) {
             for (let dy = -radius; dy <= radius; dy++) {
