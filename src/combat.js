@@ -12,6 +12,30 @@ class CombatSystem {
         this.lastRetreatTime = 0;
         this.retreatCooldown = 15000; // 15 seconds cooldown between retreats
         this.mobThreatAI = null; // Will be set after initialization
+        
+        // v4.2.0: PvP Combat System
+        this.pvpEnabled = process.env.PVP_ENABLED === 'true';
+        this.combatStance = process.env.PVP_DEFAULT_STANCE || 'balanced'; // aggressive, defensive, balanced
+        this.autoEat = process.env.PVP_AUTO_EAT !== 'false';
+        this.autoPotion = process.env.PVP_AUTO_POTION !== 'false';
+        this.escapeHealthThreshold = parseInt(process.env.PVP_ESCAPE_HEALTH) || 4; // Hearts
+        this.allies = new Set(); // Players we won't attack
+        this.priorityTargets = new Set(); // Players to prioritize
+        this.lastShieldUse = 0;
+        this.shieldCooldown = 500; // ms between shield uses
+        this.comboCounter = 0;
+        this.lastAttackTime = 0;
+        this.attackCooldown = 600; // ms - Minecraft attack cooldown
+        
+        // Combat statistics
+        this.combatStats = {
+            kills: 0,
+            deaths: 0,
+            damageDealt: 0,
+            damageTaken: 0,
+            combatsWon: 0,
+            combatsLost: 0
+        };
     }
 
     /**
@@ -628,6 +652,263 @@ class CombatSystem {
         
         // Melee mobs - close combat
         return 2; // Standard melee range
+    }
+    
+    // ==================== v4.2.0 PvP Combat Methods ====================
+    
+    /**
+     * Set combat stance
+     * @param {string} stance - 'aggressive', 'defensive', or 'balanced'
+     */
+    setStance(stance) {
+        const validStances = ['aggressive', 'defensive', 'balanced'];
+        if (validStances.includes(stance)) {
+            this.combatStance = stance;
+            console.log(`Combat stance set to: ${stance}`);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Get combat stance parameters
+     * @returns {Object} Stance-specific combat parameters
+     */
+    getStanceParameters() {
+        switch (this.combatStance) {
+            case 'aggressive':
+                return {
+                    attackRange: 3.5,
+                    retreatHealth: 3, // Lower retreat threshold
+                    pursuitDistance: 15,
+                    blockChance: 0.2, // Less blocking
+                    criticalAttackWeight: 1.5 // More critical attacks
+                };
+            case 'defensive':
+                return {
+                    attackRange: 2.5,
+                    retreatHealth: 8, // Higher retreat threshold
+                    pursuitDistance: 8,
+                    blockChance: 0.7, // More blocking
+                    criticalAttackWeight: 0.8
+                };
+            case 'balanced':
+            default:
+                return {
+                    attackRange: 3,
+                    retreatHealth: 5,
+                    pursuitDistance: 12,
+                    blockChance: 0.4,
+                    criticalAttackWeight: 1.0
+                };
+        }
+    }
+    
+    /**
+     * Add player to ally list
+     * @param {string} playerName - Player username
+     */
+    addAlly(playerName) {
+        this.allies.add(playerName.toLowerCase());
+        console.log(`Added ${playerName} to allies list`);
+    }
+    
+    /**
+     * Remove player from ally list
+     * @param {string} playerName - Player username
+     */
+    removeAlly(playerName) {
+        this.allies.delete(playerName.toLowerCase());
+        console.log(`Removed ${playerName} from allies list`);
+    }
+    
+    /**
+     * Check if player is an ally
+     * @param {string} playerName - Player username
+     * @returns {boolean}
+     */
+    isAlly(playerName) {
+        return this.allies.has(playerName.toLowerCase());
+    }
+    
+    /**
+     * Set priority target
+     * @param {string} playerName - Player username to prioritize
+     */
+    setPriorityTarget(playerName) {
+        this.priorityTargets.add(playerName.toLowerCase());
+        console.log(`Set ${playerName} as priority target`);
+    }
+    
+    /**
+     * Attempt to block with shield
+     * @returns {boolean} Whether block was successful
+     */
+    async useShield() {
+        const now = Date.now();
+        if (now - this.lastShieldUse < this.shieldCooldown) {
+            return false;
+        }
+        
+        // Check if we have a shield equipped
+        const offHand = this.bot.inventory.slots[45]; // Off-hand slot
+        if (!offHand || !offHand.name.includes('shield')) {
+            return false;
+        }
+        
+        try {
+            // Activate shield by sneaking
+            this.bot.setControlState('sneak', true);
+            this.lastShieldUse = now;
+            
+            // Hold for a short duration
+            await this.sleep(300);
+            this.bot.setControlState('sneak', false);
+            
+            return true;
+        } catch (error) {
+            this.bot.setControlState('sneak', false);
+            return false;
+        }
+    }
+    
+    /**
+     * Execute a critical attack (jumping attack)
+     * @param {Entity} entity - Target entity
+     * @returns {boolean} Whether critical attack was successful
+     */
+    async criticalAttack(entity) {
+        if (!entity || !entity.isValid) {
+            return false;
+        }
+        
+        const now = Date.now();
+        if (now - this.lastAttackTime < this.attackCooldown) {
+            return false;
+        }
+        
+        try {
+            // Jump and attack while falling for critical hit
+            this.bot.setControlState('jump', true);
+            await this.sleep(150); // Wait to reach apex
+            this.bot.setControlState('jump', false);
+            
+            // Attack while falling
+            await this.sleep(100);
+            await this.bot.attack(entity);
+            
+            this.lastAttackTime = now;
+            this.comboCounter++;
+            
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    /**
+     * Execute attack with proper cooldown timing
+     * @param {Entity} entity - Target entity
+     * @returns {boolean} Whether attack was successful
+     */
+    async timedAttack(entity) {
+        if (!entity || !entity.isValid) {
+            return false;
+        }
+        
+        const now = Date.now();
+        const timeSinceLastAttack = now - this.lastAttackTime;
+        
+        // Wait for attack cooldown if needed
+        if (timeSinceLastAttack < this.attackCooldown) {
+            await this.sleep(this.attackCooldown - timeSinceLastAttack);
+        }
+        
+        try {
+            await this.bot.attack(entity);
+            this.lastAttackTime = Date.now();
+            this.comboCounter++;
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    /**
+     * Use combat potions if available
+     * @returns {boolean} Whether potion was used
+     */
+    async useCombatPotion() {
+        if (!this.autoPotion) {
+            return false;
+        }
+        
+        // Find beneficial potions
+        const potionTypes = [
+            'potion', 'splash_potion'
+        ];
+        
+        const healthPotions = ['healing', 'regeneration'];
+        const strengthPotions = ['strength', 'swiftness'];
+        
+        try {
+            // Check if we need healing
+            const healthPercent = (this.bot.health / 20) * 100;
+            
+            // Use health potion if below 50% health
+            if (healthPercent < 50) {
+                for (const potionType of potionTypes) {
+                    const potion = this.bot.inventory.items().find(item => 
+                        item.name.includes(potionType) && 
+                        healthPotions.some(hp => item.nbt?.value?.Potion?.value?.includes(hp))
+                    );
+                    
+                    if (potion) {
+                        await this.bot.equip(potion, 'hand');
+                        this.bot.activateItem();
+                        await this.sleep(500);
+                        console.log('Used healing potion');
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    /**
+     * Get combat statistics
+     * @returns {Object} Combat stats
+     */
+    getCombatStats() {
+        return {
+            ...this.combatStats,
+            pvpEnabled: this.pvpEnabled,
+            currentStance: this.combatStance,
+            alliesCount: this.allies.size,
+            priorityTargetsCount: this.priorityTargets.size
+        };
+    }
+    
+    /**
+     * Reset combo counter (call when target changes or after timeout)
+     */
+    resetCombo() {
+        this.comboCounter = 0;
+    }
+    
+    /**
+     * Check if we should escape based on stance and health
+     * @returns {boolean}
+     */
+    shouldEscape() {
+        const params = this.getStanceParameters();
+        // Health is 0-20, convert threshold from hearts (each heart = 2 health)
+        const healthThreshold = params.retreatHealth * 2;
+        return this.bot.health <= healthThreshold;
     }
 
     sleep(ms) {
