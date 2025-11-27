@@ -8,6 +8,9 @@
  * - Pathfinding optimization
  * - Action prioritization tuning
  */
+
+const EventBus = require('./eventBus');
+
 class OptimizationManager {
     constructor(bot, systems, notifier) {
         this.bot = bot;
@@ -307,13 +310,13 @@ class OptimizationManager {
         if (this.systems.combat && this.systems.combat.combatStats) {
             // Reset combo counter if no recent attacks
             if (this.systems.combat.comboCounter > 0 && 
+                this.systems.combat.lastAttackTime &&
                 now - this.systems.combat.lastAttackTime > 5000) {
                 this.systems.combat.resetCombo();
             }
         }
         
         // v4.2.0: EventBus history cleanup
-        const EventBus = require('./eventBus');
         if (EventBus.getHistory && EventBus.clearHistory) {
             const history = EventBus.getHistory();
             if (history.length > 400) {

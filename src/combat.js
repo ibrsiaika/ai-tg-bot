@@ -752,7 +752,7 @@ class CombatSystem {
         
         // Check if we have a shield equipped
         const offHand = this.bot.inventory.slots[45]; // Off-hand slot
-        if (!offHand || !offHand.name.includes('shield')) {
+        if (!offHand || !offHand.name?.includes('shield')) {
             return false;
         }
         
@@ -860,7 +860,7 @@ class CombatSystem {
                 for (const potionType of potionTypes) {
                     const potion = this.bot.inventory.items().find(item => 
                         item.name.includes(potionType) && 
-                        healthPotions.some(hp => item.nbt?.value?.Potion?.value?.includes(hp))
+                        healthPotions.some(hp => this.isPotionType(item, hp))
                     );
                     
                     if (potion) {
@@ -874,6 +874,26 @@ class CombatSystem {
             }
             
             return false;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    /**
+     * Helper method to check if an item is a specific potion type
+     * @param {Object} item - Inventory item to check
+     * @param {string} potionType - Type of potion to check for (e.g., 'healing', 'regeneration')
+     * @returns {boolean} Whether the item is the specified potion type
+     */
+    isPotionType(item, potionType) {
+        try {
+            // Check NBT data for potion type - handle various data structures
+            const potionValue = item.nbt?.value?.Potion?.value;
+            if (typeof potionValue === 'string') {
+                return potionValue.includes(potionType);
+            }
+            // Also check the item name as fallback
+            return item.name?.includes(potionType) || false;
         } catch (error) {
             return false;
         }
