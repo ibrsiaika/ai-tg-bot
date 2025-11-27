@@ -16,6 +16,14 @@ class IntelligenceSystem {
         this.NEUTRAL_CONFIDENCE_SCORE = 0.5; // Default confidence for untested actions
         this.REWARD_NORMALIZER = 10; // For normalizing rewards in confidence calculation
         
+        // Memory limits to prevent memory leaks
+        this.MAX_SAFE_ZONES = 20;
+        this.MAX_DANGER_ZONES = 100;
+        this.MAX_STRATEGY_SUCCESS = 100;
+        this.MAX_LONG_TERM_GOALS = 20;
+        this.MAX_ACHIEVED_MILESTONES = 50;
+        this.MAX_STRUCTURE_LOCATIONS_PER_TYPE = 20;
+        
         // Memory systems
         this.worldKnowledge = {
             resourceLocations: new Map(), // resource_type -> [{position, timestamp, quantity}]
@@ -106,6 +114,13 @@ class IntelligenceSystem {
     markDangerZone(position, dangerType, severity = 1.0) {
         const key = `${Math.floor(position.x / 16)},${Math.floor(position.z / 16)}`;
         
+        // Limit danger zones to prevent memory leak
+        if (this.worldKnowledge.dangerZones.size >= this.MAX_DANGER_ZONES) {
+            // Remove oldest entry
+            const firstKey = this.worldKnowledge.dangerZones.keys().next().value;
+            this.worldKnowledge.dangerZones.delete(firstKey);
+        }
+        
         this.worldKnowledge.dangerZones.set(key, {
             type: dangerType,
             severity: severity,
@@ -147,6 +162,22 @@ class IntelligenceSystem {
         
         // Update strategy success tracking
         if (!this.strategySuccess.has(actionName)) {
+            // Limit strategy entries to prevent memory leak
+            if (this.strategySuccess.size >= this.MAX_STRATEGY_SUCCESS) {
+                // Remove entry with fewest attempts
+                let minAttempts = Infinity;
+                let minKey = null;
+                for (const [key, value] of this.strategySuccess) {
+                    if (value.attempts < minAttempts) {
+                        minAttempts = value.attempts;
+                        minKey = key;
+                    }
+                }
+                if (minKey) {
+                    this.strategySuccess.delete(minKey);
+                }
+            }
+            
             this.strategySuccess.set(actionName, {
                 attempts: 0,
                 successes: 0,
@@ -340,6 +371,19 @@ class IntelligenceSystem {
      * Add a long-term goal to the planning system
      */
     addLongTermGoal(goalName, priority, requirements) {
+        // Limit long-term goals to prevent memory leak
+        if (this.longTermGoals.length >= this.MAX_LONG_TERM_GOALS) {
+            // Remove completed goals first
+            const incompleteGoals = this.longTermGoals.filter(g => g.progress < 1.0);
+            if (incompleteGoals.length < this.longTermGoals.length) {
+                this.longTermGoals = incompleteGoals;
+            } else {
+                // Sort first, then remove lowest priority goal (last in sorted array)
+                this.longTermGoals.sort((a, b) => b.priority - a.priority);
+                this.longTermGoals.pop();
+            }
+        }
+        
         this.longTermGoals.push({
             name: goalName,
             priority: priority,
@@ -376,6 +420,11 @@ class IntelligenceSystem {
      * Mark a milestone as achieved
      */
     async achieveMilestone(milestoneName) {
+        // Limit milestones to prevent memory leak
+        if (this.achievedMilestones.length >= this.MAX_ACHIEVED_MILESTONES) {
+            this.achievedMilestones.shift();
+        }
+        
         this.achievedMilestones.push({
             name: milestoneName,
             timestamp: Date.now()

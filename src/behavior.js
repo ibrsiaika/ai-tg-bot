@@ -28,6 +28,7 @@ class BehaviorManager {
         
         // Track consecutive failures per goal
         this.goalFailures = new Map(); // goal_name -> consecutive_failure_count
+        this.MAX_GOAL_FAILURES_ENTRIES = 50; // Limit to prevent memory leak
         
         // Enhanced intelligence tracking
         this.performanceMetrics = {
@@ -601,6 +602,23 @@ class BehaviorManager {
             // Reset failure count on success
             this.goalFailures.delete(goal.name);
         } else {
+            // Limit goal failures entries to prevent memory leak
+            if (!this.goalFailures.has(goal.name) && this.goalFailures.size >= this.MAX_GOAL_FAILURES_ENTRIES) {
+                // Remove an entry with zero failures first, or oldest entry
+                let removed = false;
+                for (const [key, value] of this.goalFailures) {
+                    if (value === 0) {
+                        this.goalFailures.delete(key);
+                        removed = true;
+                        break;
+                    }
+                }
+                if (!removed) {
+                    const firstKey = this.goalFailures.keys().next().value;
+                    this.goalFailures.delete(firstKey);
+                }
+            }
+            
             // Increment failure count
             const currentFailures = this.goalFailures.get(goal.name) || 0;
             this.goalFailures.set(goal.name, currentFailures + 1);

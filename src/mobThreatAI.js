@@ -55,6 +55,7 @@ class MobThreatAI {
         
         // Danger zones (areas with frequent mob encounters)
         this.dangerZones = new Map(); // key: chunkKey, value: {count, lastSeen}
+        this.MAX_DANGER_ZONES = 100; // Limit to prevent memory leak
         
         // Retreat prediction
         this.lastRetreatTime = 0;
@@ -355,6 +356,22 @@ class MobThreatAI {
     markDangerZone(position) {
         const chunkKey = this.getChunkKey(position);
         const existing = this.dangerZones.get(chunkKey) || { count: 0, lastSeen: 0 };
+        
+        // Limit danger zones to prevent memory leak
+        if (!existing.count && this.dangerZones.size >= this.MAX_DANGER_ZONES) {
+            // Remove oldest entry
+            let oldestKey = null;
+            let oldestTime = Infinity;
+            for (const [key, zone] of this.dangerZones) {
+                if (zone.lastSeen < oldestTime) {
+                    oldestTime = zone.lastSeen;
+                    oldestKey = key;
+                }
+            }
+            if (oldestKey) {
+                this.dangerZones.delete(oldestKey);
+            }
+        }
         
         this.dangerZones.set(chunkKey, {
             count: existing.count + 1,

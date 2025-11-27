@@ -7,6 +7,14 @@ const MAX_TREE_LOCATIONS = 100;
 const TREE_LOCATION_EXPIRY_MS = 300000; // 5 minutes
 const MIN_TREE_DISTANCE = 5; // Don't return trees too close (likely already chopped)
 
+// Memory limits to prevent memory leaks
+const MAX_VISITED_LOCATIONS = 500;
+const MAX_EXPLORED_CHUNKS = 500;
+const MAX_ORE_LOCATIONS_PER_TYPE = 50;
+const MAX_DISCOVERED_STRUCTURES = 50;
+const MAX_WAYPOINTS = 50;
+const MAX_DISCOVERED_BIOMES = 20;
+
 class ExplorationSystem {
     constructor(bot, pathfinder, notifier, inventoryManager) {
         this.bot = bot;
@@ -235,6 +243,17 @@ class ExplorationSystem {
     }
 
     addWaypoint(name, position) {
+        // Limit waypoints to prevent memory leak
+        if (this.waypoints.length >= MAX_WAYPOINTS) {
+            // Remove oldest waypoint (except Home Base)
+            const nonHomeIndex = this.waypoints.findIndex(w => !w.name.includes('Home'));
+            if (nonHomeIndex !== -1) {
+                this.waypoints.splice(nonHomeIndex, 1);
+            } else {
+                this.waypoints.shift();
+            }
+        }
+        
         this.waypoints.push({
             name,
             position: position.clone(),
@@ -250,6 +269,21 @@ class ExplorationSystem {
 
     markVisited(position, radius = CHUNK_SIZE) {
         const key = `${Math.floor(position.x / radius)},${Math.floor(position.z / radius)}`;
+        
+        // Limit visited locations to prevent memory leak
+        if (this.visitedLocations.size >= MAX_VISITED_LOCATIONS) {
+            // Remove 20% of entries to make room
+            // Sets maintain insertion order in ES6+, so this removes older entries
+            const iterator = this.visitedLocations.values();
+            const entriesToRemove = Math.floor(MAX_VISITED_LOCATIONS * 0.2);
+            for (let i = 0; i < entriesToRemove; i++) {
+                const entry = iterator.next();
+                if (!entry.done) {
+                    this.visitedLocations.delete(entry.value);
+                }
+            }
+        }
+        
         this.visitedLocations.add(key);
     }
 
@@ -321,6 +355,11 @@ class ExplorationSystem {
         if (village) {
             discoveries++;
             await this.notifier.send(`Village discovered at ${this.bot.entity.position.toString()}`);
+            
+            // Limit discovered structures to prevent memory leak
+            if (this.discoveredStructures.length >= MAX_DISCOVERED_STRUCTURES) {
+                this.discoveredStructures.shift();
+            }
             this.discoveredStructures.push({ type: 'village', position: village });
             this.addWaypoint('Village', village);
         }
@@ -330,6 +369,11 @@ class ExplorationSystem {
         if (temple) {
             discoveries++;
             await this.notifier.send(`Temple found at ${this.bot.entity.position.toString()}`);
+            
+            // Limit discovered structures to prevent memory leak
+            if (this.discoveredStructures.length >= MAX_DISCOVERED_STRUCTURES) {
+                this.discoveredStructures.shift();
+            }
             this.discoveredStructures.push({ type: 'temple', position: temple });
             this.addWaypoint('Temple', temple);
         }
@@ -337,6 +381,11 @@ class ExplorationSystem {
         // Detect biome
         const biome = await this.detectBiome();
         if (biome && !this.discoveredBiomes.has(biome)) {
+            // Limit discovered biomes to prevent memory leak
+            if (this.discoveredBiomes.size >= MAX_DISCOVERED_BIOMES) {
+                const iterator = this.discoveredBiomes.values();
+                this.discoveredBiomes.delete(iterator.next().value);
+            }
             discoveries++;
             this.discoveredBiomes.add(biome);
             await this.notifier.send(`New biome discovered: ${biome}`);
@@ -353,7 +402,13 @@ class ExplorationSystem {
                     if (!this.knownOreLocations.has(ore.type)) {
                         this.knownOreLocations.set(ore.type, []);
                     }
-                    this.knownOreLocations.get(ore.type).push({
+                    const oreList = this.knownOreLocations.get(ore.type);
+                    
+                    // Limit ore locations per type to prevent memory leak
+                    if (oreList.length >= MAX_ORE_LOCATIONS_PER_TYPE) {
+                        oreList.shift();
+                    }
+                    oreList.push({
                         position: ore.position,
                         timestamp: Date.now()
                     });
@@ -556,6 +611,21 @@ class ExplorationSystem {
         const chunkX = Math.floor(position.x / CHUNK_SIZE);
         const chunkZ = Math.floor(position.z / CHUNK_SIZE);
         const key = `${chunkX},${chunkZ}`;
+        
+        // Limit explored chunks to prevent memory leak
+        if (this.exploredChunks.size >= MAX_EXPLORED_CHUNKS) {
+            // Remove 20% of entries to make room
+            // Sets maintain insertion order in ES6+, so this removes older entries
+            const iterator = this.exploredChunks.values();
+            const entriesToRemove = Math.floor(MAX_EXPLORED_CHUNKS * 0.2);
+            for (let i = 0; i < entriesToRemove; i++) {
+                const entry = iterator.next();
+                if (!entry.done) {
+                    this.exploredChunks.delete(entry.value);
+                }
+            }
+        }
+        
         this.exploredChunks.add(key);
     }
 
