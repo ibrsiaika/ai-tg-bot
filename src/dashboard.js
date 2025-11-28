@@ -5,10 +5,12 @@ const http = require('http');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
+const { DeltaSync, throttle } = require('./core/CacheUtils');
 
 /**
  * Enhanced Logging & Monitoring Dashboard
  * Web-based visibility into bot operations with real-time updates
+ * Optimized with delta-based sync to reduce bandwidth
  */
 class Dashboard {
     constructor(bot, systems, port = 3000) {
@@ -23,6 +25,10 @@ class Dashboard {
         this.maxLogBufferSize = 1000;
         this.latestCameraData = null;
         this.cameraUpdateInterval = null;
+        
+        // Delta sync for optimized updates
+        this.statusDeltaSync = new DeltaSync();
+        this.cameraDeltaSync = new DeltaSync();
         
         // Initialize winston logger
         this.initializeLogger();
@@ -841,8 +847,26 @@ class Dashboard {
 
     /**
      * Broadcast status updates to all connected clients
+     * Uses delta-based sync to only send changed data
      */
     startStatusBroadcast() {
+        setInterval(() => {
+            if (this.clients.size > 0) {
+                const status = this.getBotStatus();
+                const delta = this.statusDeltaSync.getDelta(status);
+                
+                // Only broadcast if there are changes
+                if (delta) {
+                    this.broadcast({
+                        type: 'status_delta',
+                        data: delta,
+                        fullRefresh: false
+                    });
+                }
+            }
+        }, 2000); // Update every 2 seconds
+        
+        // Send full status periodically to ensure sync
         setInterval(() => {
             if (this.clients.size > 0) {
                 this.broadcast({
@@ -850,7 +874,7 @@ class Dashboard {
                     data: this.getBotStatus()
                 });
             }
-        }, 2000); // Update every 2 seconds
+        }, 30000); // Full refresh every 30 seconds
     }
 
     /**
@@ -863,6 +887,21 @@ class Dashboard {
                 client.send(data);
             }
         });
+    }
+    
+    /**
+     * Broadcast delta-optimized camera data
+     */
+    broadcastCameraDelta(cameraData) {
+        const delta = this.cameraDeltaSync.getDelta(cameraData);
+        
+        if (delta) {
+            this.broadcast({
+                type: 'camera_delta',
+                data: delta,
+                fullRefresh: false
+            });
+        }
     }
 
     /**
