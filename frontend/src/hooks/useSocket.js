@@ -4,8 +4,17 @@ import { io } from 'socket.io-client'
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3002'
 const MAX_CHAT_HISTORY = 99 // Maximum number of chat messages to keep in memory
 const MAX_LOG_HISTORY = 99  // Maximum number of log entries to keep in memory
-const AUTO_REFRESH_INTERVAL = 5000 // Auto-refresh every 5 seconds
 const RECONNECT_ATTEMPTS = 10 // More attempts for better reliability
+
+// Helper to create timestamp update for specific keys
+const createTimestampUpdate = (keys) => {
+  const now = Date.now()
+  const result = {}
+  for (const key of keys) {
+    result[key] = now
+  }
+  return result
+}
 
 export function useSocket() {
   const [socket, setSocket] = useState(null)
@@ -14,7 +23,6 @@ export function useSocket() {
   const [lastUpdate, setLastUpdate] = useState(null)
   const [connectionQuality, setConnectionQuality] = useState('unknown') // 'good' | 'fair' | 'poor' | 'unknown'
   const latencyRef = useRef([])
-  const autoRefreshRef = useRef(null)
   
   const [data, setData] = useState({
     bot: null,
@@ -110,12 +118,14 @@ export function useSocket() {
     })
 
     socketInstance.on('bot:update', (update) => {
+      const now = Date.now()
+      const updateKeys = Object.keys(update)
       setData(prev => ({ 
         ...prev, 
         ...update,
-        timestamps: { ...prev.timestamps, ...Object.keys(update).reduce((acc, key) => ({ ...acc, [key]: Date.now() }), {}) }
+        timestamps: { ...prev.timestamps, ...createTimestampUpdate(updateKeys) }
       }))
-      setLastUpdate(Date.now())
+      setLastUpdate(now)
     })
 
     socketInstance.on('bot:health', (health) => {
@@ -201,18 +211,10 @@ export function useSocket() {
 
     setSocket(socketInstance)
 
-    // Set up auto-refresh interval
-    autoRefreshRef.current = setInterval(() => {
-      if (socketInstance.connected) {
-        socketInstance.emit('request:refresh', { type: 'systems' })
-        socketInstance.emit('request:refresh', { type: 'analytics' })
-      }
-    }, AUTO_REFRESH_INTERVAL)
+    // Note: Server handles periodic updates (every 2s for health/position, every 5s for analytics)
+    // Client only needs to request refresh on-demand via requestRefresh()
 
     return () => {
-      if (autoRefreshRef.current) {
-        clearInterval(autoRefreshRef.current)
-      }
       socketInstance.disconnect()
     }
   }, [updateConnectionQuality])

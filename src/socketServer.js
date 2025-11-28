@@ -260,9 +260,13 @@ class SocketIOServer {
     sendPeriodicUpdate() {
         if (!this.bot) return;
         
+        // Safely get health and food values with null checks
+        const health = typeof this.bot.health === 'number' ? this.bot.health : 0;
+        const food = typeof this.bot.food === 'number' ? this.bot.food : 0;
+        
         this.broadcast('bot:health', {
-            value: this.bot.health / 20,
-            food: this.bot.food / 20
+            value: health / 20,
+            food: food / 20
         });
         
         if (this.bot.entity) {

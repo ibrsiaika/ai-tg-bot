@@ -127,10 +127,10 @@ body {
   
   /* Subtle pulse for live indicators */
   .pulse-subtle {
-    animation: pulseSublte 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
   
-  @keyframes pulseSublte {
+  @keyframes pulseSubtle {
     0%, 100% {
       opacity: 1;
     }
