@@ -472,7 +472,11 @@ class AdvancedTradingSystem {
     createTradeOffer(offer) {
         const { offerItem, offerCount, requestItem, requestCount } = offer;
 
-        const offerId = `offer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Generate unique ID using timestamp and random component for collision resistance
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const counter = this.tradeOffers.size;
+        const offerId = `offer_${timestamp}_${random}_${counter}`;
 
         const tradeOffer = {
             id: offerId,

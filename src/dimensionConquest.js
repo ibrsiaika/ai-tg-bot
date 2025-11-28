@@ -22,6 +22,10 @@ const MAX_EXPLORED_CHUNKS = 100;
 const SCAN_RADIUS = 48;
 const COMBAT_CHECK_INTERVAL = 100;
 
+// Dimension detection thresholds
+const NETHER_BLOCK_THRESHOLD = 20; // Minimum nether blocks to confirm nether dimension
+const END_BLOCK_THRESHOLD = 10; // Minimum end blocks to confirm end dimension
+
 /**
  * Dimension types
  */
@@ -179,9 +183,9 @@ class DimensionConquestSystem {
             }
         }
 
-        if (netherCount > 20) {
+        if (netherCount > NETHER_BLOCK_THRESHOLD) {
             this.currentDimension = DimensionType.NETHER;
-        } else if (endCount > 10 && pos.y > 0 && pos.y < 100) {
+        } else if (endCount > END_BLOCK_THRESHOLD && pos.y > 0 && pos.y < 100) {
             this.currentDimension = DimensionType.END;
         } else {
             this.currentDimension = DimensionType.OVERWORLD;
