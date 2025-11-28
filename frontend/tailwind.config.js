@@ -23,11 +23,26 @@ export default {
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fadeIn': 'fadeIn 0.3s ease-in-out',
+        'slideIn': 'slideIn 0.3s ease-out',
+        'scaleIn': 'scaleIn 0.2s ease-out',
+        'glow': 'glow 2s ease-in-out infinite alternate',
       },
       keyframes: {
         fadeIn: {
           '0%': { opacity: '0', transform: 'translateY(-10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideIn: {
+          '0%': { opacity: '0', transform: 'translateX(-20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        glow: {
+          '0%': { boxShadow: '0 0 5px rgba(14, 165, 233, 0.2)' },
+          '100%': { boxShadow: '0 0 20px rgba(14, 165, 233, 0.4)' },
         },
       },
       gridTemplateColumns: {

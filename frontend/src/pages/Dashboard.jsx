@@ -1,8 +1,39 @@
-import { Activity, Heart, Apple, Box, Zap, MessageSquare, Send, Camera } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { Activity, Heart, Apple, Box, Zap, MessageSquare, Send } from 'lucide-react'
+import { useState, useEffect, useRef, memo } from 'react'
 import CameraView from '../components/CameraView'
+import { Card, StatCard, LiveBadge } from '../components/ui'
+import { useSocket } from '../hooks/useSocket'
+
+const ChatMessage = memo(function ChatMessage({ msg }) {
+  return (
+    <div className="bg-slate-800 rounded p-3 animate-fadeIn">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <span className="text-primary-400 font-semibold">{msg.username || 'Player'}</span>
+          <p className="text-slate-300 mt-1 text-sm break-words">{msg.message}</p>
+        </div>
+        <span className="text-xs text-slate-500 ml-2 whitespace-nowrap">
+          {new Date(msg.timestamp).toLocaleTimeString()}
+        </span>
+      </div>
+    </div>
+  )
+})
+
+const ActivityItem = memo(function ActivityItem({ log }) {
+  return (
+    <div className="flex items-start gap-3 text-sm animate-fadeIn">
+      <Zap className="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" />
+      <div className="min-w-0">
+        <p className="text-slate-300 truncate">{log.message || 'No activity'}</p>
+        <p className="text-slate-500 text-xs">{log.timestamp || 'Just now'}</p>
+      </div>
+    </div>
+  )
+})
 
 export default function Dashboard({ data }) {
+  const { connected, lastUpdate } = useSocket()
   const [chatMessage, setChatMessage] = useState('')
   const [cameraData, setCameraData] = useState(null)
   const chatEndRef = useRef(null)
@@ -63,73 +94,80 @@ export default function Dashboard({ data }) {
     }
   }
 
-  const stats = [
-    {
-      name: 'Health',
-      value: `${Math.round((data.health || 0) * 100)}%`,
-      icon: Heart,
-      color: 'text-red-500',
-      change: data.health < 0.5 ? 'Low!' : 'Good'
-    },
-    {
-      name: 'Food',
-      value: `${Math.round((data.food || 0) * 100)}%`,
-      icon: Apple,
-      color: 'text-green-500',
-      change: data.food < 0.5 ? 'Hungry' : 'Full'
-    },
-    {
-      name: 'Items',
-      value: data.inventory?.length || 0,
-      icon: Box,
-      color: 'text-blue-500',
-      change: 'In inventory'
-    },
-    {
-      name: 'Status',
-      value: data.currentGoal || 'Idle',
-      icon: Activity,
-      color: 'text-yellow-500',
-      change: 'Active'
-    },
-  ]
+  // Determine health/food status
+  const healthStatus = data.health < 0.3 ? 'Critical!' : data.health < 0.5 ? 'Low!' : 'Good'
+  const foodStatus = data.food < 0.3 ? 'Starving!' : data.food < 0.5 ? 'Hungry' : 'Full'
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-        <p className="text-slate-400 mt-1">Real-time bot overview with live camera view</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Dashboard</h2>
+          <p className="text-slate-400 mt-1">Real-time bot overview with live camera view</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <LiveBadge isLive={connected} />
+          {lastUpdate && (
+            <span className="text-xs text-slate-500">
+              Updated: {new Date(lastUpdate).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div key={stat.name} className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">{stat.name}</p>
-                  <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-                  <p className="text-xs text-slate-500 mt-1">{stat.change}</p>
-                </div>
-                <Icon className={`${stat.color} w-12 h-12 opacity-50`} />
-              </div>
-            </div>
-          )
-        })}
+        <StatCard
+          title="Health"
+          value={`${Math.round((data.health || 0) * 100)}%`}
+          icon={Heart}
+          iconColor={data.health < 0.5 ? 'text-red-500' : 'text-green-500'}
+          subtitle={healthStatus}
+          variant={data.health < 0.3 ? 'danger' : data.health < 0.5 ? 'warning' : 'success'}
+          lastUpdated={data.timestamps?.health}
+        />
+        <StatCard
+          title="Food"
+          value={`${Math.round((data.food || 0) * 100)}%`}
+          icon={Apple}
+          iconColor={data.food < 0.5 ? 'text-yellow-500' : 'text-green-500'}
+          subtitle={foodStatus}
+          variant={data.food < 0.3 ? 'danger' : data.food < 0.5 ? 'warning' : 'success'}
+          lastUpdated={data.timestamps?.health}
+        />
+        <StatCard
+          title="Items"
+          value={data.inventory?.length || 0}
+          icon={Box}
+          iconColor="text-blue-500"
+          subtitle="In inventory"
+          lastUpdated={data.timestamps?.inventory}
+        />
+        <StatCard
+          title="Status"
+          value={data.currentGoal || 'Idle'}
+          icon={Activity}
+          iconColor="text-yellow-500"
+          subtitle="Current activity"
+        />
       </div>
 
       {/* Camera View - Full Width */}
-      <div className="card">
+      <Card>
         <CameraView cameraData={cameraData} />
-      </div>
+      </Card>
 
       {/* In-Game Chat - Enhanced */}
-      <div className="card">
+      <Card>
         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-primary-400" />
           In-Game Chat
+          {chatHistory.length > 0 && (
+            <span className="text-xs text-slate-500 font-normal ml-2">
+              ({chatHistory.length} messages)
+            </span>
+          )}
         </h3>
         
         {/* Chat Messages */}
@@ -145,17 +183,7 @@ export default function Dashboard({ data }) {
           ) : (
             <div className="space-y-2">
               {chatHistory.map((msg, i) => (
-                <div key={i} className="bg-slate-800 rounded p-3 animate-fadeIn">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <span className="text-primary-400 font-semibold">{msg.username || 'Player'}</span>
-                      <p className="text-slate-300 mt-1 text-sm break-words">{msg.message}</p>
-                    </div>
-                    <span className="text-xs text-slate-500 ml-2 whitespace-nowrap">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
+                <ChatMessage key={`${msg.timestamp}-${i}`} msg={msg} />
               ))}
               <div ref={chatEndRef} />
             </div>
@@ -180,26 +208,27 @@ export default function Dashboard({ data }) {
             Send
           </button>
         </form>
-      </div>
+      </Card>
 
       {/* Recent Activity */}
-      <div className="card">
-        <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-white">Recent Activity</h3>
+          {data.logs?.length > 0 && (
+            <span className="text-xs text-slate-500">
+              {data.logs.length} events
+            </span>
+          )}
+        </div>
         <div className="space-y-3">
           {(data.logs?.slice(-5) || []).reverse().map((log, i) => (
-            <div key={i} className="flex items-start gap-3 text-sm">
-              <Zap className="w-4 h-4 text-primary-500 mt-0.5" />
-              <div>
-                <p className="text-slate-300">{log.message || 'No activity'}</p>
-                <p className="text-slate-500 text-xs">{log.timestamp || 'Just now'}</p>
-              </div>
-            </div>
+            <ActivityItem key={`${log.timestamp}-${i}`} log={log} />
           ))}
           {(!data.logs || data.logs.length === 0) && (
             <p className="text-slate-500 text-center py-8">No recent activity</p>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

@@ -28,21 +28,45 @@ body {
   height: 100vh;
 }
 
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 @layer components {
   .card {
-    @apply bg-slate-800 rounded-lg shadow-lg p-6 border border-slate-700;
+    @apply bg-slate-800 rounded-lg shadow-lg p-6 border border-slate-700 transition-all duration-200;
+  }
+  
+  .card:hover {
+    @apply shadow-xl;
   }
   
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 hover:bg-primary-700 text-white;
+    @apply btn bg-primary-600 hover:bg-primary-700 text-white hover:shadow-lg hover:shadow-primary-600/20;
   }
   
   .btn-secondary {
-    @apply btn bg-slate-700 hover:bg-slate-600 text-white;
+    @apply btn bg-slate-700 hover:bg-slate-600 text-white hover:shadow-lg;
   }
   
   .status-dot {
@@ -59,5 +83,59 @@ body {
   
   .status-idle {
     @apply status-dot bg-yellow-500;
+  }
+
+  /* Glow effects for important elements */
+  .glow-green {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+  
+  .glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+  
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+  }
+}
+
+@layer utilities {
+  /* Smooth transitions for real-time updates */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Value change highlight effect */
+  .value-updated {
+    animation: valueUpdate 0.5s ease-out;
+  }
+  
+  @keyframes valueUpdate {
+    0% {
+      transform: scale(1);
+      background-color: rgba(14, 165, 233, 0.2);
+    }
+    50% {
+      transform: scale(1.05);
+      background-color: rgba(14, 165, 233, 0.3);
+    }
+    100% {
+      transform: scale(1);
+      background-color: transparent;
+    }
+  }
+  
+  /* Subtle pulse for live indicators */
+  .pulse-subtle {
+    animation: pulseSublte 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulseSublte {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
   }
 }

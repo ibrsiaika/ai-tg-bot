@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react'
+import { RefreshCw } from 'lucide-react'
 import CameraView from '../components/CameraView'
+import { Card, LiveBadge } from '../components/ui'
+import { useSocket } from '../hooks/useSocket'
 
 /**
  * Camera Page - Dedicated full-page view of the bot's camera
  */
 export default function CameraPage({ data }) {
+  const { connected, requestRefresh, lastUpdate } = useSocket()
   const [cameraData, setCameraData] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Fetch camera data (fallback for initial load)
   useEffect(() => {
@@ -32,16 +37,43 @@ export default function CameraPage({ data }) {
     }
   }, [data.camera])
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    requestRefresh('all')
+    setTimeout(() => setIsRefreshing(false), 500)
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-white">Bot Camera</h2>
-        <p className="text-slate-400 mt-1">Live view of what your bot sees in the game world</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Bot Camera</h2>
+          <p className="text-slate-400 mt-1">Live view of what your bot sees in the game world</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <LiveBadge isLive={connected} />
+          <button
+            onClick={handleRefresh}
+            disabled={!connected || isRefreshing}
+            className="btn-secondary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="card">
+      {/* Update indicator */}
+      {lastUpdate && (
+        <div className="flex items-center justify-end text-xs text-slate-500">
+          <span>Last update: {new Date(lastUpdate).toLocaleTimeString()}</span>
+        </div>
+      )}
+
+      <Card>
         <CameraView cameraData={cameraData} />
-      </div>
+      </Card>
     </div>
   )
 }
