@@ -91,6 +91,10 @@ class SocketIOServer {
             this.broadcast('bot:gameview', data);
         });
         
+        this.eventBus.on('bot:camera', (data) => {
+            this.broadcast('bot:camera', data);
+        });
+        
         this.eventBus.on('bot:chat', (data) => {
             this.broadcast('bot:chat', data);
         });
