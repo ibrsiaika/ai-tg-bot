@@ -27,6 +27,11 @@ const LEARNING_RATE = 0.001;
 const MIN_SAMPLES_FOR_TRAINING = 50;
 const SAVE_INTERVAL_MS = 300000; // 5 minutes
 
+// ML Model input/output dimensions
+const ML_INPUT_SIZE = 20; // Total input features for neural network
+const ML_OUTPUT_SIZE = 10; // Number of action types
+const ML_FEATURE_COUNT = 6; // Number of actual state features
+
 /**
  * Experience replay buffer for efficient learning
  */
@@ -663,17 +668,18 @@ class MLTrainingSystem {
         for (const exp of experiences) {
             if (!exp.state || exp.outcome === null) continue;
 
-            // Create input features
-            const input = [
+            // Create input features with proper padding to ML_INPUT_SIZE
+            const features = [
                 exp.state.health || 0,
                 exp.state.food || 0,
                 exp.state.inventorySpace || 0,
                 exp.state.timeOfDay || 0,
                 exp.state.nearbyMobs || 0,
-                exp.state.toolDurability || 1,
-                // Add more features as needed (pad to expected size)
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                exp.state.toolDurability || 1
             ];
+            
+            // Pad to expected input size for neural network
+            const input = features.concat(new Array(ML_INPUT_SIZE - features.length).fill(0));
 
             // Create one-hot encoded label with reward adjustment
             const label = new Array(10).fill(0);

@@ -24,6 +24,7 @@ const MAX_MINING_ROUTES = 10;
 const CAVE_SCAN_RADIUS = 32;
 const CHUNK_SIZE = 16;
 const EXPLORATION_TIMEOUT = 120000; // 2 minutes
+const EXPLORED_GRID_SIZE = 8; // Grid resolution for tracking explored areas (blocks per cell)
 
 /**
  * Danger levels
@@ -451,7 +452,7 @@ class CaveExplorer {
      * Mark a position as explored
      */
     markExplored(position) {
-        const key = `${Math.floor(position.x / 8)},${Math.floor(position.y / 8)},${Math.floor(position.z / 8)}`;
+        const key = `${Math.floor(position.x / EXPLORED_GRID_SIZE)},${Math.floor(position.y / EXPLORED_GRID_SIZE)},${Math.floor(position.z / EXPLORED_GRID_SIZE)}`;
 
         // Memory limit check
         if (this.cavePoints.size >= MAX_CAVE_POINTS) {
@@ -496,7 +497,7 @@ class CaveExplorer {
      * Check if a position has been explored
      */
     isExplored(position) {
-        const key = `${Math.floor(position.x / 8)},${Math.floor(position.y / 8)},${Math.floor(position.z / 8)}`;
+        const key = `${Math.floor(position.x / EXPLORED_GRID_SIZE)},${Math.floor(position.y / EXPLORED_GRID_SIZE)},${Math.floor(position.z / EXPLORED_GRID_SIZE)}`;
         return this.cavePoints.has(key);
     }
 

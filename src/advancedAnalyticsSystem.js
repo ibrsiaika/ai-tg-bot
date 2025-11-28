@@ -574,14 +574,15 @@ class AdvancedAnalyticsSystem {
         // Calculate average hourly rate
         const avgHourlyRate = hourlyHistory.reduce((sum, h) => sum + h.avg, 0) / hourlyHistory.length;
 
-        // Calculate trend
+        // Calculate trend (with division by zero protection)
         const firstHalf = hourlyHistory.slice(0, Math.floor(hourlyHistory.length / 2));
         const secondHalf = hourlyHistory.slice(-Math.floor(hourlyHistory.length / 2));
 
         const firstAvg = firstHalf.reduce((sum, h) => sum + h.avg, 0) / firstHalf.length;
         const secondAvg = secondHalf.reduce((sum, h) => sum + h.avg, 0) / secondHalf.length;
 
-        const trend = (secondAvg - firstAvg) / firstAvg;
+        // Protect against division by zero - if firstAvg is 0, no trend can be calculated
+        const trend = firstAvg > 0 ? (secondAvg - firstAvg) / firstAvg : 0;
 
         // Predict future
         const hoursAhead = daysAhead * 24;
