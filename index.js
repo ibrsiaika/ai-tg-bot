@@ -47,6 +47,19 @@ const StorageSystem = require('./src/storage');
 const Dashboard = require('./src/dashboard');
 const SocketIOServer = require('./src/socketServer');
 
+// NEW v4.2.0 Systems - Phase 1-10 Implementation
+const SwarmCoordinator = require('./src/swarmCoordinator');
+const CaveExplorer = require('./src/caveExplorer');
+const MLTrainingSystem = require('./src/mlTrainingSystem');
+const SchematicBuilder = require('./src/schematicBuilder');
+const PotionBrewingSystem = require('./src/potionBrewing');
+const EnchantmentOptimizer = require('./src/enchantmentOptimizer');
+const DimensionConquestSystem = require('./src/dimensionConquest');
+const PlayerDetectionSystem = require('./src/playerDetection');
+const AdvancedTradingSystem = require('./src/advancedTrading');
+const RedstoneAutomationSystem = require('./src/redstoneAutomation');
+const AdvancedAnalyticsSystem = require('./src/advancedAnalyticsSystem');
+
 class AutonomousMinecraftBot {
     constructor(config) {
         this.config = config;
@@ -532,14 +545,106 @@ class AutonomousMinecraftBot {
             console.log('✓ Socket.IO Server initialized for real-time updates');
         }
 
-        console.log('✓ All systems initialized (33 systems online)');
-        await this.systems.notifier.send('🤖 ENTERPRISE v4.0.0: 33 AI systems online! NEW: Persistent Storage, Event Bus, Web Dashboard. Features: Hybrid Intelligence, Advanced Error Recovery, Performance Optimization, State Persistence. Beginning fully optimized autonomous operations with enterprise-grade monitoring.');
+        // NEW v4.2.0: Initialize Phase 1-10 Advanced Systems
+        // Phase 1: Swarm Coordinator (multi-bot orchestration)
+        this.systems.swarmCoordinator = new SwarmCoordinator();
+        if (this.systems.swarmCoordinator.enabled) {
+            console.log('✓ Swarm Coordinator initialized');
+        }
+
+        // Phase 2: ML Training System (continuous learning)
+        this.systems.mlTraining = new MLTrainingSystem();
+        console.log('✓ ML Training System initialized');
+
+        // Phase 3: Schematic Builder (autonomous construction)
+        this.systems.schematicBuilder = new SchematicBuilder(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+        console.log('✓ Schematic Builder initialized');
+
+        // Phase 4a: Enchantment Optimizer
+        this.systems.enchantmentOptimizer = new EnchantmentOptimizer(
+            this.bot,
+            this.systems.inventory,
+            this.systems.notifier
+        );
+        console.log('✓ Enchantment Optimizer initialized');
+
+        // Phase 4b: Potion Brewing System
+        this.systems.potionBrewing = new PotionBrewingSystem(
+            this.bot,
+            this.systems.inventory,
+            this.systems.notifier
+        );
+        console.log('✓ Potion Brewing System initialized');
+
+        // Phase 5: Dimension Conquest (Nether/End)
+        this.systems.dimensionConquest = new DimensionConquestSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.combat,
+            this.systems.safety
+        );
+        console.log('✓ Dimension Conquest System initialized');
+
+        // Phase 6: Player Detection
+        this.systems.playerDetection = new PlayerDetectionSystem(
+            this.bot,
+            this.systems.notifier
+        );
+        if (this.systems.playerDetection.enabled) {
+            console.log('✓ Player Detection System initialized');
+        }
+
+        // Phase 7: Advanced Trading
+        this.systems.advancedTrading = new AdvancedTradingSystem(
+            this.bot,
+            this.systems.inventory,
+            this.systems.notifier
+        );
+        console.log('✓ Advanced Trading System initialized');
+
+        // Phase 8: Redstone Automation
+        this.systems.redstoneAutomation = new RedstoneAutomationSystem(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory
+        );
+        console.log('✓ Redstone Automation System initialized');
+
+        // Phase 9: Advanced Analytics
+        this.systems.advancedAnalytics = new AdvancedAnalyticsSystem(
+            this.bot,
+            this.systems.notifier,
+            this.systems
+        );
+        if (this.systems.advancedAnalytics.enabled) {
+            console.log('✓ Advanced Analytics System initialized');
+        }
+
+        // Phase 10: Cave Explorer
+        this.systems.caveExplorer = new CaveExplorer(
+            this.bot,
+            this.bot.pathfinder,
+            this.systems.notifier,
+            this.systems.inventory,
+            this.systems.safety
+        );
+        console.log('✓ Cave Explorer initialized');
+
+        console.log('✓ All systems initialized (44 systems online)');
+        await this.systems.notifier.send('🤖 v4.2.0: 44 systems online! All 10 phases complete. Swarm, ML, Cave, Schematic, Potions, Enchant, Dimension, Player, Trading, Redstone, Analytics.');
         
         // Emit system initialized event
         if (this.systems.eventBus) {
             this.systems.eventBus.emit(EventBus.EVENTS.SYSTEM_INITIALIZED, {
-                systemCount: 33,
-                version: '4.0.0',
+                systemCount: 44,
+                version: '4.2.0',
                 timestamp: Date.now()
             });
         }
@@ -717,7 +822,7 @@ if (!validation.valid) {
 }
 
 console.log('═══════════════════════════════════════════════');
-console.log('  AUTONOMOUS MINECRAFT BOT v4.0.0');
+console.log('  AUTONOMOUS MINECRAFT BOT v4.2.0');
 console.log('  Enterprise-Grade Automation Framework');
 console.log('═══════════════════════════════════════════════');
 console.log('');
@@ -729,28 +834,22 @@ console.log(`  Dashboard: ${config.enableDashboard ? `Enabled (port ${config.das
 console.log(`  Health Threshold: ${config.minHealthPercent}%`);
 console.log(`  Food Threshold: ${config.minFoodLevel}`);
 console.log('');
-console.log('Features (v4.0.0):');
+console.log('Features (v4.2.0 - All 10 Phases):');
+console.log('  ✓ Phase 1: Multi-Bot Swarm Coordination');
+console.log('  ✓ Phase 2: ML Training & Continuous Learning');
+console.log('  ✓ Phase 3: Autonomous Schematic Construction');
+console.log('  ✓ Phase 4: Enchantment & Potion Systems');
+console.log('  ✓ Phase 5: Nether & End Dimension Conquest');
+console.log('  ✓ Phase 6: Real-Time Player Detection');
+console.log('  ✓ Phase 7: Advanced Trading & Economy');
+console.log('  ✓ Phase 8: Redstone Automation');
+console.log('  ✓ Phase 9: Advanced Analytics Dashboard');
+console.log('  ✓ Phase 10: Cave & Dungeon Exploration');
 console.log('  ✓ Persistent Storage & State Recovery');
 console.log('  ✓ Web Dashboard with Real-time Updates');
 console.log('  ✓ Event-Driven Architecture');
-console.log('  ✓ Comprehensive Test Coverage');
 console.log('  ✓ Enhanced AI with adaptive behavior');
-console.log('  ✓ Advanced intelligence "brain" system');
-console.log('  ✓ Learning from experience');
-console.log('  ✓ Tool durability management');
-console.log('  ✓ Intelligent exploration & mapping');
-console.log('  ✓ Advanced survival base building');
-console.log('  ✓ Day/night cycle adaptation');
-console.log('  ✓ Smart resource gathering');
-console.log('  ✓ Automatic mining operations');
-console.log('  ✓ Fortified base with watchtowers');
-console.log('  ✓ Farming automation');
-console.log('  ✓ Combat & defense systems');
-console.log('  ✓ Tool crafting & upgrading');
-console.log('  ✓ Inventory management');
-console.log('  ✓ Telegram notifications');
-console.log('  ✓ Performance tracking');
-console.log('  ✓ Risk assessment');
+console.log('  ✓ Memory optimized for 512MB RAM');
 console.log('');
 console.log('Starting bot...');
 console.log('═══════════════════════════════════════════════');
