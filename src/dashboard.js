@@ -30,6 +30,9 @@ class Dashboard {
         this.statusDeltaSync = new DeltaSync();
         this.cameraDeltaSync = new DeltaSync();
         
+        // Track intervals for cleanup
+        this.statusBroadcastIntervals = [];
+        
         // Initialize winston logger
         this.initializeLogger();
         
@@ -850,7 +853,7 @@ class Dashboard {
      * Uses delta-based sync to only send changed data
      */
     startStatusBroadcast() {
-        setInterval(() => {
+        const deltaInterval = setInterval(() => {
             if (this.clients.size > 0) {
                 const status = this.getBotStatus();
                 const delta = this.statusDeltaSync.getDelta(status);
@@ -865,9 +868,10 @@ class Dashboard {
                 }
             }
         }, 2000); // Update every 2 seconds
+        this.statusBroadcastIntervals.push(deltaInterval);
         
         // Send full status periodically to ensure sync
-        setInterval(() => {
+        const fullInterval = setInterval(() => {
             if (this.clients.size > 0) {
                 this.broadcast({
                     type: 'status',
@@ -875,6 +879,7 @@ class Dashboard {
                 });
             }
         }, 30000); // Full refresh every 30 seconds
+        this.statusBroadcastIntervals.push(fullInterval);
     }
 
     /**
@@ -908,6 +913,12 @@ class Dashboard {
      * Stop the dashboard server
      */
     stop() {
+        // Clear status broadcast intervals
+        for (const interval of this.statusBroadcastIntervals) {
+            clearInterval(interval);
+        }
+        this.statusBroadcastIntervals = [];
+        
         if (this.cameraUpdateInterval) {
             clearInterval(this.cameraUpdateInterval);
             this.cameraUpdateInterval = null;

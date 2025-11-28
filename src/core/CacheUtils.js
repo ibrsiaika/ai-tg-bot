@@ -266,14 +266,18 @@ function throttle(fn, limit) {
 /**
  * Delta-based sync helper
  * Only transmits changed values
+ * Note: Uses JSON.stringify for deep comparison of objects.
+ * This approach works well for simple objects without circular references.
  */
 class DeltaSync {
     constructor() {
         this.lastState = {};
+        this.lastSerializedState = {};
     }
 
     /**
      * Get delta between current and last state
+     * Uses shallow comparison for primitives and cached serialization for objects
      * @param {Object} currentState - Current state object
      * @returns {Object|null} Delta object or null if no changes
      */
@@ -284,14 +288,23 @@ class DeltaSync {
         for (const [key, value] of Object.entries(currentState)) {
             const lastValue = this.lastState[key];
             
-            // Deep comparison for objects
+            // Handle objects with cached serialization
             if (typeof value === 'object' && value !== null) {
-                const serialized = JSON.stringify(value);
-                const lastSerialized = JSON.stringify(lastValue);
-                
-                if (serialized !== lastSerialized) {
-                    delta[key] = value;
-                    hasChanges = true;
+                try {
+                    const serialized = JSON.stringify(value);
+                    const lastSerialized = this.lastSerializedState[key];
+                    
+                    if (serialized !== lastSerialized) {
+                        delta[key] = value;
+                        hasChanges = true;
+                        this.lastSerializedState[key] = serialized;
+                    }
+                } catch (e) {
+                    // Handle circular references - compare by reference
+                    if (value !== lastValue) {
+                        delta[key] = value;
+                        hasChanges = true;
+                    }
                 }
             } else if (value !== lastValue) {
                 delta[key] = value;
@@ -308,10 +321,34 @@ class DeltaSync {
     }
 
     /**
+     * Shallow compare two values
+     * @param {*} a - First value
+     * @param {*} b - Second value  
+     * @returns {boolean} True if values are equal
+     */
+    shallowEqual(a, b) {
+        if (a === b) return true;
+        if (typeof a !== typeof b) return false;
+        if (typeof a !== 'object' || a === null) return false;
+        
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        
+        if (keysA.length !== keysB.length) return false;
+        
+        for (const key of keysA) {
+            if (a[key] !== b[key]) return false;
+        }
+        
+        return true;
+    }
+
+    /**
      * Reset the last state
      */
     reset() {
         this.lastState = {};
+        this.lastSerializedState = {};
     }
 }
 

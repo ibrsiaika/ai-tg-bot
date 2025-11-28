@@ -3,17 +3,10 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { TrendingUp, Clock, Zap, RefreshCw, Activity, Database, Cpu, HardDrive, Gauge, Signal } from 'lucide-react'
 import { Card, StatCard, LiveBadge, LoadingSpinner } from '../components/ui'
 import { useSocket } from '../hooks/useSocket'
+import THEME from '../theme'
 
-// Cyber color palette
-const COLORS = {
-  primary: '#14b8a6',
-  secondary: '#8b5cf6',
-  accent: '#d946ef',
-  success: '#39FF14',
-  warning: '#fbbf24',
-  danger: '#ef4444',
-  gradient: ['#14b8a6', '#8b5cf6', '#d946ef'],
-}
+// Use theme colors for consistency
+const COLORS = THEME.chart
 
 const Analytics = memo(function Analytics({ data }) {
   const { connected, requestRefresh, lastUpdate } = useSocket()
