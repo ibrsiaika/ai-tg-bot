@@ -1,6 +1,6 @@
 {
   "name": "autonomous-minecraft-bot",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "Enterprise-grade autonomous Minecraft bot with ML engine, React dashboard, multi-bot coordination, and advanced analytics",
   "main": "index.js",
   "scripts": {
