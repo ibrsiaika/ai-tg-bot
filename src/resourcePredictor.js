@@ -6,6 +6,8 @@
  * - Prioritizes gathering based on current goals
  * - Smart gathering sessions for multi-use resources
  */
+const { MemoCache } = require('./core/CacheUtils');
+
 class ResourcePredictor {
     constructor(bot, notifier, inventoryManager) {
         this.bot = bot;
@@ -14,6 +16,10 @@ class ResourcePredictor {
         
         // Current goals and their requirements
         this.craftingGoals = [];
+        
+        // Memoization cache for expensive calculations
+        this.requirementsCache = new MemoCache({ maxSize: 100, defaultTTL: 30000 });
+        this.gapsCache = new MemoCache({ maxSize: 50, defaultTTL: 5000 });
         
         // Resource dependency chains
         this.DEPENDENCY_CHAINS = {
@@ -247,14 +253,23 @@ class ResourcePredictor {
     }
     
     /**
-     * Calculate what's needed for a crafting goal
+     * Calculate what's needed for a crafting goal (with memoization)
      */
     calculateRequirements(goalItem, quantity = 1) {
+        // Check cache first
+        const cacheKey = `${goalItem}:${quantity}`;
+        const cached = this.requirementsCache.get(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const requirements = {};
         
         const chain = this.DEPENDENCY_CHAINS[goalItem];
         if (!chain) {
-            return { [goalItem]: quantity };
+            const result = { [goalItem]: quantity };
+            this.requirementsCache.set(cacheKey, result);
+            return result;
         }
         
         // Calculate direct requirements
@@ -271,6 +286,8 @@ class ResourcePredictor {
             }
         }
         
+        // Cache the result
+        this.requirementsCache.set(cacheKey, requirements);
         return requirements;
     }
     
@@ -494,8 +511,20 @@ class ResourcePredictor {
             gameStage: this.currentStage,
             resourceGaps: this.analyzeResourceGaps().length,
             craftingGoals: this.craftingGoals.length,
-            efficiency: this.getGatheringEfficiency()
+            efficiency: this.getGatheringEfficiency(),
+            cacheStats: {
+                requirements: this.requirementsCache.getStats(),
+                gaps: this.gapsCache.getStats()
+            }
         };
+    }
+    
+    /**
+     * Clear caches (call when inventory changes significantly)
+     */
+    clearCaches() {
+        this.gapsCache.clear();
+        // Don't clear requirements cache - it's based on static data
     }
 }
 

@@ -5,10 +5,12 @@ const http = require('http');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
+const { DeltaSync, throttle } = require('./core/CacheUtils');
 
 /**
  * Enhanced Logging & Monitoring Dashboard
  * Web-based visibility into bot operations with real-time updates
+ * Optimized with delta-based sync to reduce bandwidth
  */
 class Dashboard {
     constructor(bot, systems, port = 3000) {
@@ -23,6 +25,13 @@ class Dashboard {
         this.maxLogBufferSize = 1000;
         this.latestCameraData = null;
         this.cameraUpdateInterval = null;
+        
+        // Delta sync for optimized updates
+        this.statusDeltaSync = new DeltaSync();
+        this.cameraDeltaSync = new DeltaSync();
+        
+        // Track intervals for cleanup
+        this.statusBroadcastIntervals = [];
         
         // Initialize winston logger
         this.initializeLogger();
@@ -841,16 +850,36 @@ class Dashboard {
 
     /**
      * Broadcast status updates to all connected clients
+     * Uses delta-based sync to only send changed data
      */
     startStatusBroadcast() {
-        setInterval(() => {
+        const deltaInterval = setInterval(() => {
+            if (this.clients.size > 0) {
+                const status = this.getBotStatus();
+                const delta = this.statusDeltaSync.getDelta(status);
+                
+                // Only broadcast if there are changes
+                if (delta) {
+                    this.broadcast({
+                        type: 'status_delta',
+                        data: delta,
+                        fullRefresh: false
+                    });
+                }
+            }
+        }, 2000); // Update every 2 seconds
+        this.statusBroadcastIntervals.push(deltaInterval);
+        
+        // Send full status periodically to ensure sync
+        const fullInterval = setInterval(() => {
             if (this.clients.size > 0) {
                 this.broadcast({
                     type: 'status',
                     data: this.getBotStatus()
                 });
             }
-        }, 2000); // Update every 2 seconds
+        }, 30000); // Full refresh every 30 seconds
+        this.statusBroadcastIntervals.push(fullInterval);
     }
 
     /**
@@ -864,11 +893,32 @@ class Dashboard {
             }
         });
     }
+    
+    /**
+     * Broadcast delta-optimized camera data
+     */
+    broadcastCameraDelta(cameraData) {
+        const delta = this.cameraDeltaSync.getDelta(cameraData);
+        
+        if (delta) {
+            this.broadcast({
+                type: 'camera_delta',
+                data: delta,
+                fullRefresh: false
+            });
+        }
+    }
 
     /**
      * Stop the dashboard server
      */
     stop() {
+        // Clear status broadcast intervals
+        for (const interval of this.statusBroadcastIntervals) {
+            clearInterval(interval);
+        }
+        this.statusBroadcastIntervals = [];
+        
         if (this.cameraUpdateInterval) {
             clearInterval(this.cameraUpdateInterval);
             this.cameraUpdateInterval = null;

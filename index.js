@@ -4,6 +4,9 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const collectBlock = require('mineflayer-collectblock').plugin;
 const Vec3 = require('vec3');
 
+// Import core infrastructure
+const { DeltaSync, throttle } = require('./src/core/CacheUtils');
+
 // Import our systems
 const TelegramNotifier = require('./src/telegram');
 const SafetyMonitor = require('./src/safety');
@@ -52,6 +55,10 @@ class AutonomousMinecraftBot {
         this.errorCounts = new Map(); // Track error counts for rate limiting
         this.lastErrorTime = new Map(); // Track last error time for rate limiting
         this.intervals = []; // Track all setInterval IDs for cleanup
+        
+        // Delta sync for optimized real-time updates
+        this.inventoryDeltaSync = new DeltaSync();
+        this.systemsDeltaSync = new DeltaSync();
     }
 
     /**
@@ -604,11 +611,12 @@ class AutonomousMinecraftBot {
 
     /**
      * NEW v4.1.0: Send real-time updates to dashboard via EventBus
+     * Optimized with delta-based sync to reduce data transfer
      */
     startRealtimeUpdates() {
         if (!this.systems.eventBus) return;
 
-        // Emit inventory updates every 5 seconds
+        // Emit inventory updates every 5 seconds (with delta optimization)
         const inventoryInterval = setInterval(() => {
             if (this.bot && this.bot.inventory) {
                 const inventoryData = this.bot.inventory.items().map(item => ({
@@ -616,12 +624,17 @@ class AutonomousMinecraftBot {
                     count: item.count,
                     slot: item.slot
                 }));
-                this.systems.eventBus.emit('bot:inventory', inventoryData);
+                
+                // Use delta sync to only send changes
+                const delta = this.inventoryDeltaSync.getDelta({ items: inventoryData });
+                if (delta) {
+                    this.systems.eventBus.emit('bot:inventory', inventoryData);
+                }
             }
         }, 5000);
         this.intervals.push(inventoryInterval);
 
-        // Emit system status updates every 10 seconds
+        // Emit system status updates every 10 seconds (with delta optimization)
         const systemsInterval = setInterval(() => {
             const systemsStatus = {
                 behavior: this.systems.behavior?.isActive ? 'active' : 'idle',
@@ -637,11 +650,16 @@ class AutonomousMinecraftBot {
                 dashboard: this.systems.dashboard ? 'online' : 'offline',
                 currentGoal: this.systems.behavior?.currentGoal?.name || 'idle'
             };
-            this.systems.eventBus.emit('bot:systems', systemsStatus);
+            
+            // Use delta sync to only send changes
+            const delta = this.systemsDeltaSync.getDelta(systemsStatus);
+            if (delta) {
+                this.systems.eventBus.emit('bot:systems', systemsStatus);
+            }
         }, 10000);
         this.intervals.push(systemsInterval);
 
-        console.log('✓ Real-time dashboard updates enabled');
+        console.log('✓ Real-time dashboard updates enabled (with delta optimization)');
     }
 
     /**
