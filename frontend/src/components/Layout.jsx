@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Map, Package, Settings, BarChart, Terminal, FileText } from 'lucide-react'
+import { Home, Map, Package, Settings, BarChart, Terminal, FileText, Camera } from 'lucide-react'
 import clsx from 'clsx'
 
 const navigation = [
   { name: 'Dashboard', path: '/', icon: Home },
+  { name: 'Camera', path: '/camera', icon: Camera },
   { name: 'Map', path: '/map', icon: Map },
   { name: 'Inventory', path: '/inventory', icon: Package },
   { name: 'Systems', path: '/systems', icon: Settings },

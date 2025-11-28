@@ -21,8 +21,8 @@ class Dashboard {
         this.clients = new Set();
         this.logBuffer = [];
         this.maxLogBufferSize = 1000;
-        this.latestScreenshot = null;
-        this.screenshotInterval = null;
+        this.latestCameraData = null;
+        this.cameraUpdateInterval = null;
         
         // Initialize winston logger
         this.initializeLogger();
@@ -230,21 +230,14 @@ class Dashboard {
             }
         });
 
-        // Get latest game view data
-        this.app.get('/api/gameview', (req, res) => {
+        // Get latest camera view data
+        this.app.get('/api/camera', (req, res) => {
             try {
-                if (!this.latestScreenshot) {
-                    return res.status(404).json({ error: 'No game view data available yet' });
+                if (!this.latestCameraData) {
+                    return res.status(404).json({ error: 'No camera data available yet' });
                 }
                 
-                // Decode and send the JSON data
-                const jsonData = Buffer.from(this.latestScreenshot.data, 'base64').toString('utf-8');
-                const viewData = JSON.parse(jsonData);
-                
-                res.json({
-                    timestamp: this.latestScreenshot.timestamp,
-                    ...viewData
-                });
+                res.json(this.latestCameraData);
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }
@@ -448,8 +441,8 @@ class Dashboard {
                 // Start periodic status broadcasts
                 this.startStatusBroadcast();
 
-                // Start screenshot capture (every minute)
-                this.startGameViewCapture();
+                // Start camera view capture (real-time updates every 2 seconds)
+                this.startCameraCapture();
 
                 // Listen for chat messages from the game
                 this.setupChatListener();
@@ -495,111 +488,351 @@ class Dashboard {
     }
 
     /**
-     * Capture game view data periodically
+     * Start real-time camera capture
+     * Provides live view of what the bot sees
      */
-    startGameViewCapture() {
-        // Capture game view every minute
-        this.screenshotInterval = setInterval(async () => {
+    startCameraCapture() {
+        // Capture camera view every 2 seconds for real-time updates
+        this.cameraUpdateInterval = setInterval(async () => {
             try {
-                await this.captureGameView();
+                await this.captureCameraView();
             } catch (error) {
-                this.log('error', 'Failed to capture game view', { error: error.message });
+                this.log('error', 'Failed to capture camera view', { error: error.message });
             }
-        }, 60000); // Every 60 seconds (1 minute)
+        }, 2000); // Every 2 seconds for real-time feel
 
-        // Capture initial view after 5 seconds
+        // Capture initial view after 1 second
         setTimeout(() => {
-            this.captureGameView().catch(err => {
-                this.log('warn', 'Initial game view capture failed', { error: err.message });
+            this.captureCameraView().catch(err => {
+                this.log('warn', 'Initial camera capture failed', { error: err.message });
             });
-        }, 5000);
+        }, 1000);
     }
 
     /**
-     * Capture a snapshot of the bot's surroundings
+     * Capture a comprehensive view of what the bot sees
+     * This replaces the old screenshot system with live camera data
      */
-    async captureGameView() {
+    async captureCameraView() {
         if (!this.bot || !this.bot.entity) {
-            this.log('warn', 'Cannot capture game view - bot not ready');
             return;
         }
 
         try {
-            // Create a data snapshot of the bot's surroundings
-            const viewData = {
-                timestamp: Date.now(),
-                position: this.bot.entity.position,
-                health: this.bot.health,
-                food: this.bot.food,
-                nearbyEntities: [],
-                nearbyBlocks: []
-            };
-
-            // Get nearby entities
-            const entities = Object.values(this.bot.entities);
-            for (const entity of entities.slice(0, 10)) {
-                if (entity !== this.bot.entity && entity.position) {
-                    const distance = this.bot.entity.position.distanceTo(entity.position);
-                    if (distance < 20) {
-                        viewData.nearbyEntities.push({
-                            type: entity.name || entity.type,
-                            distance: Math.round(distance),
-                            position: {
-                                x: Math.round(entity.position.x),
-                                y: Math.round(entity.position.y),
-                                z: Math.round(entity.position.z)
-                            }
-                        });
-                    }
-                }
-            }
-
-            // Get blocks around the bot
             const pos = this.bot.entity.position;
-            const radius = 5;
-            for (let x = -radius; x <= radius; x++) {
-                for (let y = -2; y <= 2; y++) {
-                    for (let z = -radius; z <= radius; z++) {
-                        const block = this.bot.blockAt(pos.offset(x, y, z));
-                        if (block && block.name !== 'air') {
-                            viewData.nearbyBlocks.push({
-                                name: block.name,
-                                position: {
-                                    x: Math.round(block.position.x),
-                                    y: Math.round(block.position.y),
-                                    z: Math.round(block.position.z)
-                                }
-                            });
-                        }
-                    }
-                }
-            }
+            const yaw = this.bot.entity.yaw;
+            const pitch = this.bot.entity.pitch;
 
-            // Store as base64 JSON data
-            this.latestScreenshot = {
+            // Create comprehensive camera data
+            const cameraData = {
                 timestamp: Date.now(),
-                data: Buffer.from(JSON.stringify(viewData)).toString('base64')
+                bot: {
+                    position: {
+                        x: Math.round(pos.x * 100) / 100,
+                        y: Math.round(pos.y * 100) / 100,
+                        z: Math.round(pos.z * 100) / 100
+                    },
+                    rotation: {
+                        yaw: Math.round(yaw * 100) / 100,
+                        pitch: Math.round(pitch * 100) / 100,
+                        direction: this.getDirection(yaw)
+                    },
+                    health: this.bot.health,
+                    food: this.bot.food,
+                    oxygen: this.bot.oxygenLevel || 20,
+                    isOnGround: this.bot.entity.onGround,
+                    velocity: {
+                        x: Math.round((this.bot.entity.velocity?.x || 0) * 100) / 100,
+                        y: Math.round((this.bot.entity.velocity?.y || 0) * 100) / 100,
+                        z: Math.round((this.bot.entity.velocity?.z || 0) * 100) / 100
+                    }
+                },
+                environment: {
+                    time: this.bot.time?.timeOfDay || 0,
+                    isDay: this.bot.time?.timeOfDay < 13000,
+                    raining: this.bot.isRaining || false,
+                    dimension: this.bot.game?.dimension || 'overworld',
+                    biome: this.getBiomeAt(pos)
+                },
+                view: {
+                    nearbyEntities: this.getNearbyEntities(32),
+                    nearbyPlayers: this.getNearbyPlayers(64),
+                    groundBlocks: this.getGroundBlocks(8),
+                    visibleBlocks: this.getVisibleBlocks(16),
+                    threats: this.detectThreats()
+                }
             };
+
+            // Store latest camera data
+            this.latestCameraData = cameraData;
 
             // Broadcast to connected clients via WebSocket
             this.broadcast({
-                type: 'gameview',
-                data: viewData
+                type: 'camera',
+                data: cameraData
             });
 
             // Also emit via EventBus for Socket.IO clients
             if (this.systems.eventBus) {
-                this.systems.eventBus.emit('bot:gameview', viewData);
+                this.systems.eventBus.emit('bot:camera', cameraData);
             }
-
-            this.log('info', 'Game view captured', { 
-                entities: viewData.nearbyEntities.length,
-                blocks: viewData.nearbyBlocks.length
-            });
         } catch (error) {
-            this.log('error', 'Game view capture failed', { error: error.message });
-            throw error;
+            this.log('error', 'Camera capture failed', { error: error.message });
         }
+    }
+
+    /**
+     * Get cardinal direction from yaw
+     */
+    getDirection(yaw) {
+        // Normalize yaw to 0-360
+        const normalizedYaw = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
+        
+        if (normalizedYaw >= 315 || normalizedYaw < 45) return 'South';
+        if (normalizedYaw >= 45 && normalizedYaw < 135) return 'West';
+        if (normalizedYaw >= 135 && normalizedYaw < 225) return 'North';
+        return 'East';
+    }
+
+    /**
+     * Get biome at position
+     */
+    getBiomeAt(pos) {
+        try {
+            const block = this.bot.blockAt(pos);
+            if (block && block.biome) {
+                return block.biome.name || 'unknown';
+            }
+            return 'unknown';
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    /**
+     * Get nearby entities with detailed info
+     */
+    getNearbyEntities(radius) {
+        const entities = [];
+        const botPos = this.bot.entity.position;
+        
+        for (const entity of Object.values(this.bot.entities)) {
+            if (entity === this.bot.entity || !entity.position) continue;
+            
+            const distance = botPos.distanceTo(entity.position);
+            if (distance > radius) continue;
+
+            const entityInfo = {
+                type: entity.type,
+                name: entity.name || entity.displayName || entity.type,
+                id: entity.id,
+                distance: Math.round(distance * 10) / 10,
+                position: {
+                    x: Math.round(entity.position.x),
+                    y: Math.round(entity.position.y),
+                    z: Math.round(entity.position.z)
+                },
+                health: entity.health,
+                hostile: this.isHostile(entity)
+            };
+
+            entities.push(entityInfo);
+        }
+
+        // Sort by distance
+        entities.sort((a, b) => a.distance - b.distance);
+        return entities.slice(0, 20); // Limit to 20 nearest
+    }
+
+    /**
+     * Get nearby players
+     */
+    getNearbyPlayers(radius) {
+        const players = [];
+        const botPos = this.bot.entity.position;
+
+        for (const player of Object.values(this.bot.players)) {
+            if (!player.entity || player.username === this.bot.username) continue;
+            
+            const distance = botPos.distanceTo(player.entity.position);
+            if (distance > radius) continue;
+
+            players.push({
+                username: player.username,
+                distance: Math.round(distance * 10) / 10,
+                position: {
+                    x: Math.round(player.entity.position.x),
+                    y: Math.round(player.entity.position.y),
+                    z: Math.round(player.entity.position.z)
+                },
+                ping: player.ping
+            });
+        }
+
+        return players.sort((a, b) => a.distance - b.distance);
+    }
+
+    /**
+     * Check if entity is hostile
+     */
+    isHostile(entity) {
+        const hostileMobs = [
+            'zombie', 'skeleton', 'creeper', 'spider', 'cave_spider',
+            'enderman', 'witch', 'slime', 'phantom', 'drowned',
+            'husk', 'stray', 'vindicator', 'pillager', 'ravager',
+            'evoker', 'vex', 'blaze', 'ghast', 'magma_cube',
+            'hoglin', 'piglin_brute', 'warden', 'wither_skeleton'
+        ];
+        
+        const name = (entity.name || entity.type || '').toLowerCase();
+        return hostileMobs.some(mob => name.includes(mob));
+    }
+
+    /**
+     * Get ground blocks in a grid pattern
+     */
+    getGroundBlocks(radius) {
+        const blocks = [];
+        const pos = this.bot.entity.position;
+        
+        for (let x = -radius; x <= radius; x++) {
+            for (let z = -radius; z <= radius; z++) {
+                // Find ground level at this x,z
+                for (let y = 3; y >= -3; y--) {
+                    const block = this.bot.blockAt(pos.offset(x, y, z));
+                    if (block && block.name !== 'air') {
+                        blocks.push({
+                            name: block.name,
+                            relX: x,
+                            relY: y,
+                            relZ: z,
+                            position: {
+                                x: Math.round(block.position.x),
+                                y: Math.round(block.position.y),
+                                z: Math.round(block.position.z)
+                            }
+                        });
+                        break; // Only get the top block at each x,z
+                    }
+                }
+            }
+        }
+        
+        return blocks;
+    }
+
+    /**
+     * Get visible blocks in front of the bot (in view direction)
+     */
+    getVisibleBlocks(distance) {
+        const blocks = [];
+        const pos = this.bot.entity.position;
+        const yaw = this.bot.entity.yaw;
+        
+        // Calculate direction vector from yaw
+        const dirX = -Math.sin(yaw);
+        const dirZ = Math.cos(yaw);
+        
+        // Scan in front of the bot
+        for (let d = 1; d <= distance; d++) {
+            const checkX = Math.round(pos.x + dirX * d);
+            const checkZ = Math.round(pos.z + dirZ * d);
+            
+            // Check multiple heights
+            for (let y = -2; y <= 4; y++) {
+                const block = this.bot.blockAt({ x: checkX, y: pos.y + y, z: checkZ });
+                if (block && block.name !== 'air') {
+                    blocks.push({
+                        name: block.name,
+                        distance: d,
+                        relY: y,
+                        position: {
+                            x: checkX,
+                            y: Math.round(pos.y + y),
+                            z: checkZ
+                        }
+                    });
+                }
+            }
+        }
+        
+        return blocks.slice(0, 50); // Limit results
+    }
+
+    /**
+     * Detect nearby threats
+     */
+    detectThreats() {
+        const threats = [];
+        const botPos = this.bot.entity.position;
+        
+        // Check for hostile mobs
+        for (const entity of Object.values(this.bot.entities)) {
+            if (entity === this.bot.entity || !entity.position) continue;
+            
+            if (this.isHostile(entity)) {
+                const distance = botPos.distanceTo(entity.position);
+                if (distance < 16) {
+                    threats.push({
+                        type: 'hostile_mob',
+                        name: entity.name || entity.type,
+                        distance: Math.round(distance * 10) / 10,
+                        severity: distance < 5 ? 'high' : distance < 10 ? 'medium' : 'low'
+                    });
+                }
+            }
+        }
+
+        // Check for dangerous blocks (lava, fire)
+        const dangerBlocks = ['lava', 'fire', 'magma_block', 'cactus', 'sweet_berry_bush'];
+        for (let x = -3; x <= 3; x++) {
+            for (let y = -2; y <= 2; y++) {
+                for (let z = -3; z <= 3; z++) {
+                    const block = this.bot.blockAt(botPos.offset(x, y, z));
+                    if (block && dangerBlocks.includes(block.name)) {
+                        const distance = Math.sqrt(x*x + y*y + z*z);
+                        threats.push({
+                            type: 'dangerous_block',
+                            name: block.name,
+                            distance: Math.round(distance * 10) / 10,
+                            severity: distance < 2 ? 'high' : 'medium'
+                        });
+                    }
+                }
+            }
+        }
+
+        // Check health status
+        if (this.bot.health < 6) {
+            threats.push({
+                type: 'low_health',
+                name: 'Critical Health',
+                distance: 0,
+                severity: 'high'
+            });
+        } else if (this.bot.health < 10) {
+            threats.push({
+                type: 'low_health',
+                name: 'Low Health',
+                distance: 0,
+                severity: 'medium'
+            });
+        }
+
+        // Check food status
+        if (this.bot.food < 6) {
+            threats.push({
+                type: 'low_food',
+                name: 'Hunger',
+                distance: 0,
+                severity: this.bot.food < 3 ? 'high' : 'medium'
+            });
+        }
+
+        return threats.sort((a, b) => {
+            const severityOrder = { high: 0, medium: 1, low: 2 };
+            return severityOrder[a.severity] - severityOrder[b.severity];
+        });
     }
 
     /**
@@ -632,9 +865,9 @@ class Dashboard {
      * Stop the dashboard server
      */
     stop() {
-        if (this.screenshotInterval) {
-            clearInterval(this.screenshotInterval);
-            this.screenshotInterval = null;
+        if (this.cameraUpdateInterval) {
+            clearInterval(this.cameraUpdateInterval);
+            this.cameraUpdateInterval = null;
         }
         if (this.wss) {
             this.wss.close();

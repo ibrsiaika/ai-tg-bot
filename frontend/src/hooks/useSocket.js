@@ -18,6 +18,7 @@ export function useSocket() {
     logs: [],
     analytics: {},
     gameview: null,
+    camera: null,
     chatMessages: []
   })
 
@@ -61,6 +62,10 @@ export function useSocket() {
 
     socketInstance.on('bot:gameview', (gameview) => {
       setData(prev => ({ ...prev, gameview }))
+    })
+
+    socketInstance.on('bot:camera', (camera) => {
+      setData(prev => ({ ...prev, camera }))
     })
 
     socketInstance.on('bot:chat', (chatMessage) => {

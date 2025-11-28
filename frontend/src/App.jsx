@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useSocket } from './hooks/useSocket'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
+import Camera from './pages/Camera'
 import Map from './pages/Map'
 import Inventory from './pages/Inventory'
 import Systems from './pages/Systems'
@@ -17,6 +18,7 @@ function App() {
       <Layout connected={connected}>
         <Routes>
           <Route path="/" element={<Dashboard data={data} />} />
+          <Route path="/camera" element={<Camera data={data} />} />
           <Route path="/map" element={<Map data={data} />} />
           <Route path="/inventory" element={<Inventory data={data} />} />
           <Route path="/systems" element={<Systems data={data} />} />
