@@ -174,7 +174,34 @@ EventBus.EVENTS = {
     
     // Performance events
     METRIC_RECORDED: 'metric:recorded',
-    PERFORMANCE_WARNING: 'performance:warning'
+    PERFORMANCE_WARNING: 'performance:warning',
+    
+    // ML events
+    ML_INITIALIZED: 'ml:initialized',
+    ML_PREDICTION: 'ml:prediction',
+    ML_ERROR: 'ml:error'
 };
+
+// Create singleton instance for global event communication
+const globalEventBus = new EventBus();
+
+// Attach static methods that delegate to the singleton instance
+// This allows using EventBus.emit() and EventBus.on() directly
+EventBus.emit = (...args) => globalEventBus.emit(...args);
+EventBus.on = (...args) => globalEventBus.on(...args);
+EventBus.once = (...args) => globalEventBus.once(...args);
+EventBus.off = (...args) => globalEventBus.off(...args);
+EventBus.removeListener = (...args) => globalEventBus.removeListener(...args);
+EventBus.removeAllListeners = (...args) => globalEventBus.removeAllListeners(...args);
+EventBus.listeners = (...args) => globalEventBus.listeners(...args);
+EventBus.listenerCount = (...args) => globalEventBus.listenerCount(...args);
+EventBus.getHistory = (...args) => globalEventBus.getHistory(...args);
+EventBus.getEventTypes = () => globalEventBus.getEventTypes();
+EventBus.getListenerInfo = (...args) => globalEventBus.getListenerInfo(...args);
+EventBus.clearHistory = () => globalEventBus.clearHistory();
+
+// Export the class (which now has static methods delegating to singleton)
+// Also export the singleton instance for explicit access
+EventBus.getInstance = () => globalEventBus;
 
 module.exports = EventBus;

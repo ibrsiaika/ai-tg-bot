@@ -8,6 +8,9 @@
  * - Pathfinding optimization
  * - Action prioritization tuning
  */
+
+const EventBus = require('./eventBus');
+
 class OptimizationManager {
     constructor(bot, systems, notifier) {
         this.bot = bot;
@@ -220,28 +223,32 @@ class OptimizationManager {
      */
     optimizeMemoryUsage() {
         // Clean up old data from various systems
+        const now = Date.now();
         
         // Intelligence system cleanup
         if (this.systems.intelligence) {
             const intel = this.systems.intelligence;
             const maxAge = 1800000; // 30 minutes
-            const now = Date.now();
             
             // Clean old resource locations
-            intel.worldKnowledge.resourceLocations.forEach((locations, resourceType) => {
-                const fresh = locations.filter(loc => now - loc.timestamp < maxAge);
-                if (fresh.length < locations.length) {
-                    intel.worldKnowledge.resourceLocations.set(resourceType, fresh);
-                    console.log(`Cleaned ${locations.length - fresh.length} old ${resourceType} locations`);
-                }
-            });
+            if (intel.worldKnowledge && intel.worldKnowledge.resourceLocations) {
+                intel.worldKnowledge.resourceLocations.forEach((locations, resourceType) => {
+                    const fresh = locations.filter(loc => now - loc.timestamp < maxAge);
+                    if (fresh.length < locations.length) {
+                        intel.worldKnowledge.resourceLocations.set(resourceType, fresh);
+                        console.log(`Cleaned ${locations.length - fresh.length} old ${resourceType} locations`);
+                    }
+                });
+            }
             
             // Clean old danger zones
-            intel.worldKnowledge.dangerZones.forEach((zone, key) => {
-                if (now - zone.timestamp > maxAge) {
-                    intel.worldKnowledge.dangerZones.delete(key);
-                }
-            });
+            if (intel.worldKnowledge && intel.worldKnowledge.dangerZones) {
+                intel.worldKnowledge.dangerZones.forEach((zone, key) => {
+                    if (now - zone.timestamp > maxAge) {
+                        intel.worldKnowledge.dangerZones.delete(key);
+                    }
+                });
+            }
         }
         
         // Exploration cleanup
@@ -258,11 +265,63 @@ class OptimizationManager {
         // AI Orchestrator cache cleanup
         if (this.systems.aiOrchestrator) {
             const orchestrator = this.systems.aiOrchestrator;
-            const cacheSize = orchestrator.decisionCache.size;
-            
-            if (cacheSize > 50) {
+            if (orchestrator.decisionCache && orchestrator.decisionCache.size > 50) {
                 orchestrator.decisionCache.clear();
                 console.log('Cleared AI decision cache');
+            }
+        }
+        
+        // v4.2.0: Pathfinding cache cleanup
+        if (this.systems.pathfinding) {
+            const pathfinding = this.systems.pathfinding;
+            const cacheMaxAge = 300000; // 5 minutes
+            
+            // Clean expired path cache entries
+            if (pathfinding.pathCache) {
+                let cleanedCount = 0;
+                pathfinding.pathCache.forEach((entry, key) => {
+                    if (now - entry.timestamp > cacheMaxAge) {
+                        pathfinding.pathCache.delete(key);
+                        cleanedCount++;
+                    }
+                });
+                if (cleanedCount > 0) {
+                    console.log(`Cleaned ${cleanedCount} expired path cache entries`);
+                }
+            }
+        }
+        
+        // v4.2.0: ML Decision Engine cache cleanup
+        if (this.systems.mlEngine && this.systems.mlEngine.cache) {
+            const mlEngine = this.systems.mlEngine;
+            if (mlEngine.cache.size > 80) {
+                // Remove oldest 30% of cache entries
+                const entries = Array.from(mlEngine.cache.entries())
+                    .sort((a, b) => a[1].timestamp - b[1].timestamp);
+                const toRemove = Math.floor(entries.length * 0.3);
+                for (let i = 0; i < toRemove; i++) {
+                    mlEngine.cache.delete(entries[i][0]);
+                }
+                console.log(`Trimmed ${toRemove} ML cache entries`);
+            }
+        }
+        
+        // v4.2.0: Combat stats reset if too large
+        if (this.systems.combat && this.systems.combat.combatStats) {
+            // Reset combo counter if no recent attacks
+            if (this.systems.combat.comboCounter > 0 && 
+                this.systems.combat.lastAttackTime &&
+                now - this.systems.combat.lastAttackTime > 5000) {
+                this.systems.combat.resetCombo();
+            }
+        }
+        
+        // v4.2.0: EventBus history cleanup
+        if (EventBus.getHistory && EventBus.clearHistory) {
+            const history = EventBus.getHistory();
+            if (history.length > 400) {
+                EventBus.clearHistory();
+                console.log('Cleared EventBus history');
             }
         }
     }
