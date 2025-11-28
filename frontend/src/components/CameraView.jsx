@@ -305,12 +305,14 @@ export default function CameraView({ cameraData, compact = false }) {
                 transform: 'translate(-50%, -50%)'
               }}
             />
-            {/* Direction arrow */}
+            {/* Direction arrow - points in direction bot is facing */}
             <div 
               className="absolute w-0 h-0 border-l-4 border-r-4 border-b-8 border-l-transparent border-r-transparent border-b-yellow-400"
               style={{ 
                 left: '50%', 
                 top: 'calc(50% - 12px)', 
+                // Convert yaw from radians to degrees for CSS rotation
+                // Mineflayer yaw: 0 = South, increases counter-clockwise
                 transform: `translateX(-50%) rotate(${(bot?.rotation?.yaw || 0) * 180 / Math.PI}deg)`,
                 transformOrigin: 'center bottom'
               }}

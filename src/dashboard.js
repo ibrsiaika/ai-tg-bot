@@ -583,14 +583,18 @@ class Dashboard {
 
     /**
      * Get cardinal direction from yaw
+     * In Minecraft/Mineflayer: yaw is in radians
+     * yaw = 0 means facing South, increases counter-clockwise
      */
     getDirection(yaw) {
-        // Normalize yaw to 0-360
-        const normalizedYaw = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
+        // Convert from radians to degrees and normalize to 0-360
+        // Mineflayer yaw: 0 = South, π/2 = West, π = North, -π/2 = East
+        const degrees = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
         
-        if (normalizedYaw >= 315 || normalizedYaw < 45) return 'South';
-        if (normalizedYaw >= 45 && normalizedYaw < 135) return 'West';
-        if (normalizedYaw >= 135 && normalizedYaw < 225) return 'North';
+        // Minecraft cardinal directions based on yaw
+        if (degrees >= 315 || degrees < 45) return 'South';
+        if (degrees >= 45 && degrees < 135) return 'West';
+        if (degrees >= 135 && degrees < 225) return 'North';
         return 'East';
     }
 
